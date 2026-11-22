@@ -1,0 +1,31 @@
+{
+  "name": "order-to-audit-backend",
+  "version": "1.0.0",
+  "description": "Order-to-Audit System Backend - Food Manufacturing ERP",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --forceExit --detectOpenHandles",
+    "seed": "node src/db/runSeed.js",
+    "init-db": "node src/db/initDb.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "pdfkit": "^0.13.0",
+    "exceljs": "^4.4.0",
+    "morgan": "^1.10.0",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
+  }
+}
+
