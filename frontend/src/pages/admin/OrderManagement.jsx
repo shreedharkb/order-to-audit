@@ -168,7 +168,7 @@ export default function OrderManagement() {
                 <h3 className="font-bold text-gray-900 text-lg">Inventory Availability Check</h3>
                 <p className="text-xs text-gray-500">Order: {stockModalOrder.order_number} ({stockModalOrder.customer_name})</p>
               </div>
-              <button onClick={() => setStockModalOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+              <button onClick={() => setStockModalOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
             </div>
 
             <div className="space-y-3">

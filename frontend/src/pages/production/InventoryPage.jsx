@@ -133,7 +133,7 @@ export default function InventoryPage() {
                 </h3>
                 <p className="text-xs text-gray-500">Every stock in/out entry tied to source transactions</p>
               </div>
-              <button onClick={() => setSelectedItemLedger(null)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+              <button onClick={() => setSelectedItemLedger(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
