@@ -1,0 +1,86 @@
+import React, { useEffect, useState } from 'react';
+import client from '../../api/client';
+import { formatCurrency } from '../../utils/format';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import toast from 'react-hot-toast';
+import { ShieldCheck, Download } from 'lucide-react';
+
+export default function GSTReport() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    client.get('/reports/gst-summary')
+      .then(res => setData(res.data))
+      .catch(err => toast.error('Failed to load GST summary'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingSpinner message="Calculating GST outward tax schedules..." />;
+
+  const { rates = [], consolidated = {} } = data || {};
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">GST Outward Supplies (GSTR-1 / 3B)</h1>
+          <p className="text-sm text-gray-500">Statutory tax summary grouped by HSN tax rates for direct GST filing</p>
+        </div>
+        <div className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4" />
+          <span>GSTIN: 33AABCS1429B1ZB (Tamil Nadu)</span>
+        </div>
+      </div>
+
+      {/* Summary Schedule Table */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div className="p-4 border-b bg-gray-50/70 font-bold text-gray-800 text-sm">
+          Table 4 & 5: Taxable Outward Supplies Schedule
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-gray-100/70 font-bold text-gray-700 border-b">
+                <th className="p-3">Rate %</th>
+                <th className="p-3">Supply Nature</th>
+                <th className="p-3 text-right">Taxable Value (Rs)</th>
+                <th className="p-3 text-right">Central Tax (CGST)</th>
+                <th className="p-3 text-right">State Tax (SGST)</th>
+                <th className="p-3 text-right">Integrated Tax (IGST)</th>
+                <th className="p-3 text-right font-black">Total Tax (Rs)</th>
+                <th className="p-3 text-right font-black">Gross Invoiced (Rs)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rates.map((r, idx) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="p-3 font-black text-gray-900">{r.gstRatePercent}%</td>
+                  <td className="p-3 font-semibold text-gray-700">{r.supplyType}</td>
+                  <td className="p-3 text-right font-medium">{formatCurrency(r.taxableAmountPaisa)}</td>
+                  <td className="p-3 text-right text-gray-700">{formatCurrency(r.cgstPaisa)}</td>
+                  <td className="p-3 text-right text-gray-700">{formatCurrency(r.sgstPaisa)}</td>
+                  <td className="p-3 text-right text-gray-700">{formatCurrency(r.igstPaisa)}</td>
+                  <td className="p-3 text-right font-bold text-orange-700">{formatCurrency(r.totalTaxPaisa)}</td>
+                  <td className="p-3 text-right font-black text-gray-900">{formatCurrency(r.totalPaisa)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-gray-50 font-black border-t-2 border-gray-300">
+              <tr>
+                <td colSpan={2} className="p-3 text-gray-900">Consolidated Grand Total</td>
+                <td className="p-3 text-right text-gray-900">{formatCurrency(consolidated.totalTaxablePaisa)}</td>
+                <td className="p-3 text-right text-gray-900">{formatCurrency(consolidated.totalCgstPaisa)}</td>
+                <td className="p-3 text-right text-gray-900">{formatCurrency(consolidated.totalSgstPaisa)}</td>
+                <td className="p-3 text-right text-gray-900">{formatCurrency(consolidated.totalIgstPaisa)}</td>
+                <td className="p-3 text-right text-orange-700">{formatCurrency(consolidated.totalTaxPaisa)}</td>
+                <td className="p-3 text-right text-emerald-800">{formatCurrency(consolidated.grandTotalPaisa)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
