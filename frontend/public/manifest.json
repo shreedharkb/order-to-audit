@@ -1,0 +1,9 @@
+{
+  "name": "Sri Lakshmi Foods - Order to Audit",
+  "short_name": "SLF Orders",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#ea580c",
+  "background_color": "#ffffff",
+  "description": "Order-to-Audit system for food manufacturing"
+}
