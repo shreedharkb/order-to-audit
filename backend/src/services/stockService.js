@@ -22,11 +22,11 @@ const getStockBalance = async (pool, itemId) => {
  */
 const getWeightedAvgCost = async (pool, itemId) => {
   const res = await pool.query(
-    `SELECT 
-       COALESCE(SUM(qty_in * rate_paisa), 0) AS total_val,
-       COALESCE(SUM(qty_in), 0) AS total_qty
+    `SELECT
+       COALESCE(SUM(qty_in) - SUM(qty_out), 0) AS total_qty,
+       COALESCE(SUM(qty_in * rate_paisa) - SUM(qty_out * rate_paisa), 0) AS total_val
      FROM stock_ledger
-     WHERE item_id = $1 AND qty_in > 0 AND rate_paisa > 0`,
+     WHERE item_id = $1`,
     [itemId]
   );
   const totalVal = parseFloat(res.rows[0].total_val || 0);
@@ -116,20 +116,33 @@ const getStockLedger = async (pool, itemId = null, dateFrom = null, dateTo = nul
   `;
 
   const res = await pool.query(sql, params);
-  
-  // Compute running balance
-  let running = 0;
-  const rows = res.rows.map(r => {
-    const inQty = parseFloat(r.qty_in || 0);
-    const outQty = parseFloat(r.qty_out || 0);
-    running += (inQty - outQty);
+  const openingBalances = {};
+
+  if (dateFrom) {
+    const openingRes = await pool.query(
+      `SELECT item_id, COALESCE(SUM(qty_in) - SUM(qty_out), 0) AS balance
+       FROM stock_ledger
+       WHERE txn_date < $1 ${itemId ? 'AND item_id = $2' : ''}
+       GROUP BY item_id`,
+      itemId ? [dateFrom, itemId] : [dateFrom]
+    );
+    openingRes.rows.forEach(row => {
+      openingBalances[row.item_id] = parseFloat(row.balance || 0);
+    });
+  }
+
+  const runningBalances = {};
+  return res.rows.map(r => {
+    const itemId = r.item_id;
+    if (runningBalances[itemId] === undefined) {
+      runningBalances[itemId] = openingBalances[itemId] || 0;
+    }
+    runningBalances[itemId] += parseFloat(r.qty_in || 0) - parseFloat(r.qty_out || 0);
     return {
       ...r,
-      running_balance: running
+      running_balance: Number(runningBalances[itemId].toFixed(4))
     };
   });
-
-  return rows;
 };
 
 /**
@@ -155,12 +168,12 @@ const getStockSummary = async (pool, type = null) => {
       i.reorder_level,
       COALESCE(SUM(sl.qty_in) - SUM(sl.qty_out), 0) AS current_balance,
       COALESCE(
-        CASE 
-          WHEN SUM(CASE WHEN sl.qty_in > 0 THEN sl.qty_in ELSE 0 END) > 0 
-          THEN SUM(CASE WHEN sl.qty_in > 0 THEN sl.qty_in * sl.rate_paisa ELSE 0 END) / 
-               SUM(CASE WHEN sl.qty_in > 0 THEN sl.qty_in ELSE 0 END)
-          ELSE 0 
-        END, 
+        CASE
+          WHEN SUM(sl.qty_in) - SUM(sl.qty_out) > 0 THEN
+            (SUM(sl.qty_in * sl.rate_paisa) - SUM(sl.qty_out * sl.rate_paisa)) /
+            (SUM(sl.qty_in) - SUM(sl.qty_out))
+          ELSE 0
+        END,
         0
       )::BIGINT AS weighted_avg_rate_paisa
     FROM items i

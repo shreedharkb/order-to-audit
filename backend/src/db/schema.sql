@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE items ADD COLUMN IF NOT EXISTS packaging_role VARCHAR(20);
+ALTER TABLE items ADD COLUMN IF NOT EXISTS pack_capacity NUMERIC(15,4);
+
 -- Bill of Materials: header
 CREATE TABLE IF NOT EXISTS bom (
     id SERIAL PRIMARY KEY,
@@ -227,10 +230,13 @@ CREATE TABLE IF NOT EXISTS invoices (
     is_dispatched BOOLEAN DEFAULT FALSE,
     cancelled_reason TEXT,
     cancelled_at TIMESTAMP,
+    credit_note_number VARCHAR(20),
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS credit_note_number VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS invoice_lines (
     id SERIAL PRIMARY KEY,
@@ -267,6 +273,8 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_reversed BOOLEAN DEFAULT FALSE;
+
 -- Audit log for traceability
 CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
@@ -293,6 +301,17 @@ CREATE TABLE IF NOT EXISTS overhead_entries (
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_items_name ON items(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bom_lines_bom_item ON bom_lines(bom_id, item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_production_runs_batch_number ON production_runs(batch_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_production_issues_run_item ON production_issues(run_id, item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_opening_per_item ON stock_ledger(item_id) WHERE txn_type = 'opening_balance';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_source_item_type ON stock_ledger(txn_ref_type, txn_ref_id, item_id, txn_type)
+    WHERE txn_ref_type IN ('production_run', 'invoice');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_default_price_per_item ON price_lists(item_id) WHERE customer_id IS NULL;
 
 -- Company settings
 CREATE TABLE IF NOT EXISTS settings (
@@ -330,11 +349,12 @@ $$ LANGUAGE SQL;
 CREATE OR REPLACE FUNCTION get_weighted_avg_cost(p_item_id INTEGER)
 RETURNS BIGINT AS $$
     SELECT CASE
-        WHEN SUM(qty_in) > 0 THEN
-            (SUM(qty_in * rate_paisa) / SUM(qty_in))::BIGINT
+        WHEN SUM(qty_in) - SUM(qty_out) > 0 THEN
+            ROUND((SUM(qty_in * rate_paisa) - SUM(qty_out * rate_paisa)) /
+                  (SUM(qty_in) - SUM(qty_out)))::BIGINT
         ELSE 0
     END
     FROM stock_ledger
-    WHERE item_id = p_item_id AND qty_in > 0 AND rate_paisa > 0;
+    WHERE item_id = p_item_id;
 $$ LANGUAGE SQL;
 

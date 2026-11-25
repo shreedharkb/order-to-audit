@@ -12,14 +12,21 @@ router.use(authenticate);
  * POST /api/orders
  * Salesman places an order (Mobile optimized)
  */
-router.post('/', authorize('salesman', 'admin'), async (req, res) => {
+router.post('/', authorize('salesman', 'admin', 'owner'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { customerId, items, notes } = req.body;
 
     if (!customerId || !Array.isArray(items) || items.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Customer ID and at least one item are required' });
+    }
+
+    const customerRes = await client.query('SELECT id FROM customers WHERE id = $1', [customerId]);
+    if (customerRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Customer not found' });
     }
 
     // Generate Order Number: ORD/YYYY/XXXX
@@ -36,31 +43,36 @@ router.post('/', authorize('salesman', 'admin'), async (req, res) => {
 
     for (const item of items) {
       const { itemId, qty } = item;
-      const numQty = parseFloat(qty);
-      if (numQty <= 0) continue;
+      const numQty = Number(qty);
+      if (!Number.isFinite(numQty) || numQty <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Every order line needs a positive quantity' });
+      }
+
+      const itemRes = await client.query('SELECT * FROM items WHERE id = $1', [itemId]);
+      if (!itemRes.rows[0] || itemRes.rows[0].type !== 'finished_good') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Orders can contain only finished goods' });
+      }
 
       // Price lookup: 1. Customer-specific, 2. Default price list, 3. Item master price
       const priceRes = await client.query(
-        `SELECT price_paisa FROM price_lists 
+        `SELECT price_paisa FROM price_lists
          WHERE item_id = $1 AND (customer_id = $2 OR customer_id IS NULL)
          ORDER BY customer_id NULLS LAST LIMIT 1`,
         [itemId, customerId]
       );
 
-      let pricePaisa = 0;
-      if (priceRes.rows.length > 0) {
-        pricePaisa = parseInt(priceRes.rows[0].price_paisa, 10);
-      } else {
-        const itemRes = await client.query('SELECT selling_price_paisa, unit FROM items WHERE id = $1', [itemId]);
-        pricePaisa = parseInt(itemRes.rows[0]?.selling_price_paisa || 0, 10);
-      }
-
+      const pricePaisa = priceRes.rows.length > 0
+        ? parseInt(priceRes.rows[0].price_paisa, 10)
+        : parseInt(itemRes.rows[0].selling_price_paisa || 0, 10);
       const amountPaisa = Math.round(numQty * pricePaisa);
       totalPaisa += amountPaisa;
 
       processedLines.push({
         itemId,
         qty: numQty,
+        unit: itemRes.rows[0].unit,
         pricePaisa,
         amountPaisa
       });
@@ -76,14 +88,14 @@ router.post('/', authorize('salesman', 'admin'), async (req, res) => {
 
     for (const pl of processedLines) {
       await client.query(
-        `INSERT INTO order_lines (order_id, item_id, qty, price_paisa, amount_paisa)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [newOrder.id, pl.itemId, pl.qty, pl.pricePaisa, pl.amountPaisa]
+        `INSERT INTO order_lines (order_id, item_id, qty, unit, price_paisa, amount_paisa)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [newOrder.id, pl.itemId, pl.qty, pl.unit, pl.pricePaisa, pl.amountPaisa]
       );
     }
 
+    await logAudit(client, 'orders', newOrder.id, 'create', null, newOrder, req.user.id);
     await client.query('COMMIT');
-    await logAudit(pool, 'orders', newOrder.id, 'create', null, newOrder, req.user.id);
 
     res.status(201).json({
       message: 'Order submitted successfully',
@@ -101,7 +113,7 @@ router.post('/', authorize('salesman', 'admin'), async (req, res) => {
  * GET /api/orders
  * List orders (Salesman sees own; Admin/Owner sees all)
  */
-router.get('/', async (req, res) => {
+router.get('/', authorize('salesman', 'admin', 'owner'), async (req, res) => {
   try {
     const { status } = req.query;
     let queryText = `
@@ -141,7 +153,7 @@ router.get('/', async (req, res) => {
  * GET /api/orders/:id
  * Get single order detail with line items
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authorize('salesman', 'admin', 'owner'), async (req, res) => {
   try {
     const orderRes = await pool.query(`
       SELECT o.*, c.name AS customer_name, c.gstin AS customer_gstin, c.state AS customer_state,
@@ -154,6 +166,9 @@ router.get('/:id', async (req, res) => {
 
     if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     const order = orderRes.rows[0];
+    if (req.user.role === 'salesman' && order.salesman_id !== req.user.id) {
+      return res.status(403).json({ error: 'You can view only your own orders' });
+    }
 
     const linesRes = await pool.query(`
       SELECT ol.*, i.name AS item_name, i.unit, i.hsn_code, i.gst_rate_percent
@@ -173,8 +188,14 @@ router.get('/:id', async (req, res) => {
  * GET /api/orders/stock-check/:id
  * Stock check for order line items
  */
-router.get('/stock-check/:id', async (req, res) => {
+router.get('/stock-check/:id', authorize('salesman', 'admin', 'owner'), async (req, res) => {
   try {
+    const orderRes = await pool.query('SELECT salesman_id FROM orders WHERE id = $1', [req.params.id]);
+    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    if (req.user.role === 'salesman' && orderRes.rows[0].salesman_id !== req.user.id) {
+      return res.status(403).json({ error: 'You can check only your own orders' });
+    }
+
     const linesRes = await pool.query(`
       SELECT ol.*, i.name AS item_name, i.unit
       FROM order_lines ol
@@ -214,17 +235,100 @@ router.get('/stock-check/:id', async (req, res) => {
 });
 
 /**
+ * PUT /api/orders/:id
+ * Admin edits quantities and prices before approval
+ */
+router.put('/:id', authorize('admin', 'owner'), async (req, res) => {
+  const client = await pool.connect();
+  const fail = async (status, error) => {
+    await client.query('ROLLBACK');
+    return res.status(status).json({ error });
+  };
+
+  try {
+    await client.query('BEGIN');
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (orderRes.rows.length === 0) return fail(404, 'Order not found');
+    const order = orderRes.rows[0];
+    if (order.status !== 'submitted') return fail(400, 'Only submitted orders can be edited');
+
+    const { items, notes } = req.body;
+    if (!Array.isArray(items) || items.length === 0) return fail(400, 'At least one order line is required');
+
+    const existingRes = await client.query('SELECT * FROM order_lines WHERE order_id = $1', [order.id]);
+    const existingByItem = {};
+    existingRes.rows.forEach(line => { existingByItem[line.item_id] = line; });
+
+    let totalPaisa = 0;
+    const lines = [];
+    const seenItems = new Set();
+    for (const item of items) {
+      const itemId = Number(item.itemId);
+      const qty = Number(item.qty);
+      if (seenItems.has(itemId)) return fail(400, 'Duplicate order line item');
+      seenItems.add(itemId);
+      if (!Number.isFinite(qty) || qty <= 0) return fail(400, 'Every order line needs a positive quantity');
+
+      const itemRes = await client.query('SELECT * FROM items WHERE id = $1', [itemId]);
+      if (!itemRes.rows[0] || itemRes.rows[0].type !== 'finished_good') return fail(400, 'Orders can contain only finished goods');
+
+      const requestedPrice = item.pricePaisa === undefined
+        ? existingByItem[itemId]?.price_paisa
+        : Number(item.pricePaisa);
+      const pricePaisa = requestedPrice === undefined
+        ? parseInt(itemRes.rows[0].selling_price_paisa || 0, 10)
+        : requestedPrice;
+      if (!Number.isInteger(pricePaisa) || pricePaisa < 0) return fail(400, 'Price must be a non-negative integer paisa amount');
+
+      const amountPaisa = Math.round(qty * pricePaisa);
+      totalPaisa += amountPaisa;
+      lines.push({ itemId, qty, unit: itemRes.rows[0].unit, pricePaisa, amountPaisa });
+    }
+
+    await client.query('DELETE FROM order_lines WHERE order_id = $1', [order.id]);
+    for (const line of lines) {
+      await client.query(
+        'INSERT INTO order_lines (order_id, item_id, qty, unit, price_paisa, amount_paisa) VALUES ($1, $2, $3, $4, $5, $6)',
+        [order.id, line.itemId, line.qty, line.unit, line.pricePaisa, line.amountPaisa]
+      );
+    }
+
+    const updated = await client.query(
+      'UPDATE orders SET total_paisa = $1, notes = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+      [totalPaisa, notes === undefined ? order.notes : notes, order.id]
+    );
+    await logAudit(client, 'orders', order.id, 'update', { ...order, lines: existingRes.rows }, { ...updated.rows[0], lines }, req.user.id);
+    await client.query('COMMIT');
+
+    res.json({ message: 'Order updated', order: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * PUT /api/orders/:id/approve
  * Admin approves order with stock alert
  */
 router.put('/:id/approve', authorize('admin', 'owner'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
-    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    await client.query('BEGIN');
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (orderRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
     const order = orderRes.rows[0];
+    if (order.status !== 'submitted') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Only submitted orders can be approved' });
+    }
 
-    // Check stock availability
-    const linesRes = await pool.query(`
+    const linesRes = await client.query(`
       SELECT ol.*, i.name AS item_name, i.unit
       FROM order_lines ol
       JOIN items i ON ol.item_id = i.id
@@ -233,7 +337,7 @@ router.put('/:id/approve', authorize('admin', 'owner'), async (req, res) => {
 
     const warnings = [];
     for (const line of linesRes.rows) {
-      const balance = await stockService.getStockBalance(pool, line.item_id);
+      const balance = await stockService.getStockBalance(client, line.item_id);
       const requested = parseFloat(line.qty);
       if (balance < requested) {
         warnings.push({
@@ -246,12 +350,12 @@ router.put('/:id/approve', authorize('admin', 'owner'), async (req, res) => {
       }
     }
 
-    await pool.query(
+    await client.query(
       "UPDATE orders SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
       [order.id]
     );
-
-    await logAudit(pool, 'orders', order.id, 'update', { status: order.status }, { status: 'approved' }, req.user.id);
+    await logAudit(client, 'orders', order.id, 'update', { status: order.status }, { status: 'approved' }, req.user.id);
+    await client.query('COMMIT');
 
     res.json({
       message: 'Order approved successfully',
@@ -259,7 +363,10 @@ router.put('/:id/approve', authorize('admin', 'owner'), async (req, res) => {
       hasStockShortage: warnings.length > 0
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -268,16 +375,26 @@ router.put('/:id/approve', authorize('admin', 'owner'), async (req, res) => {
  * Admin rejects order with reason
  */
 router.put('/:id/reject', authorize('admin', 'owner'), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { reason } = req.body;
-    const orderRes = await pool.query(
-      "UPDATE orders SET status = 'rejected', rejection_reason = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+    const orderRes = await client.query(
+      "UPDATE orders SET status = 'rejected', rejection_reason = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = 'submitted' RETURNING *",
       [reason || 'Rejected by Admin', req.params.id]
     );
-    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    if (orderRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Only submitted orders can be rejected' });
+    }
+    await logAudit(client, 'orders', orderRes.rows[0].id, 'update', { status: 'submitted' }, orderRes.rows[0], req.user.id);
+    await client.query('COMMIT');
     res.json({ message: 'Order rejected', order: orderRes.rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

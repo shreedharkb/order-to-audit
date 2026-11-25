@@ -9,7 +9,16 @@
 
 const calculateGST = ({ taxableAmountPaisa, gstRatePercent, isIGST }) => {
   const taxable = Math.round(Number(taxableAmountPaisa));
-  const rate = parseFloat(gstRatePercent);
+  const rateValue = Number(gstRatePercent);
+  if (!Number.isFinite(rateValue) || rateValue < 0) {
+    throw new Error('GST rate must be a non-negative number');
+  }
+  const rateBasisPoints = Math.round(rateValue * 100);
+  const rate = rateBasisPoints / 100;
+
+  if (!Number.isInteger(taxable) || taxable < 0) {
+    throw new Error('Taxable amount must be a non-negative integer paisa value');
+  }
 
   let cgstPaisa = 0;
   let sgstPaisa = 0;
@@ -20,13 +29,12 @@ const calculateGST = ({ taxableAmountPaisa, gstRatePercent, isIGST }) => {
 
   if (isIGST) {
     igstPercent = rate;
-    igstPaisa = Math.round((taxable * rate) / 100);
+    igstPaisa = Math.round((taxable * rateBasisPoints) / 10000);
   } else {
-    // Intra-state supply: split equally into CGST and SGST
     cgstPercent = rate / 2;
     sgstPercent = rate / 2;
-    cgstPaisa = Math.round((taxable * cgstPercent) / 100);
-    sgstPaisa = Math.round((taxable * sgstPercent) / 100);
+    cgstPaisa = Math.round((taxable * rateBasisPoints) / 20000);
+    sgstPaisa = Math.round((taxable * rateBasisPoints) / 20000);
   }
 
   const totalTaxPaisa = cgstPaisa + sgstPaisa + igstPaisa;
@@ -50,44 +58,32 @@ const isInterState = (companyStateCode, customerStateCode) => {
   return String(companyStateCode).trim() !== String(customerStateCode).trim();
 };
 
-const generateInvoiceNumber = async (pool) => {
-  // Use atomic row update on settings table
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+const getFinancialYear = (date = new Date()) => {
+  const year = date.getFullYear();
+  const startYear = date.getMonth() >= 3 ? year : year - 1;
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
+};
 
-    // Read FY and prefix
-    const fyRes = await client.query("SELECT value FROM settings WHERE key = 'financial_year'");
-    const fy = fyRes.rows[0]?.value || '2024-25';
+const generateInvoiceNumber = async (client) => {
+  const prefixRes = await client.query("SELECT value FROM settings WHERE key = 'invoice_prefix'");
+  const prefix = prefixRes.rows[0]?.value || 'INV';
 
-    const prefixRes = await client.query("SELECT value FROM settings WHERE key = 'invoice_prefix'");
-    const prefix = prefixRes.rows[0]?.value || 'INV';
+  const counterRes = await client.query(
+    "SELECT value FROM settings WHERE key = 'invoice_counter' FOR UPDATE"
+  );
+  const counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
 
-    // Lock counter row for update
-    const counterRes = await client.query(
-      "SELECT value FROM settings WHERE key = 'invoice_counter' FOR UPDATE"
-    );
-    let counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
+  await client.query(
+    "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'invoice_counter'",
+    [counter.toString()]
+  );
 
-    await client.query(
-      "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'invoice_counter'",
-      [counter.toString()]
-    );
-
-    await client.query('COMMIT');
-
-    const formattedNumber = `${prefix}/${fy}/${counter.toString().padStart(4, '0')}`;
-    return formattedNumber;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return `${prefix}/${getFinancialYear()}/${counter.toString().padStart(4, '0')}`;
 };
 
 module.exports = {
   calculateGST,
   isInterState,
+  getFinancialYear,
   generateInvoiceNumber
 };

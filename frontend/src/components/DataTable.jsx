@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, ChevronLeft, ChevronRight, Download, Inbox, X } from 'lucide-react';
 
 export default function DataTable({
   columns = [],
@@ -10,123 +10,143 @@ export default function DataTable({
   pageSize = 10,
   onExport,
   exportLabel = 'Export Excel',
-  emptyMessage = 'No records found'
+  emptyMessage = 'No records found',
+  mobileCards = true
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Search filter
-  const filteredData = data.filter(row => {
+  const filteredData = useMemo(() => data.filter(row => {
     if (!searchTerm.trim()) return true;
     return columns.some(col => {
-      const val = row[col.key];
-      if (val === null || val === undefined) return false;
-      return String(val).toLowerCase().includes(searchTerm.toLowerCase());
+      const value = row[col.key];
+      if (value === null || value === undefined) return false;
+      return String(value).toLowerCase().includes(searchTerm.toLowerCase());
     });
-  });
+  }), [columns, data, searchTerm]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedData = pagination ? filteredData.slice(startIndex, startIndex + pageSize) : filteredData;
 
+  useEffect(() => {
+    setCurrentPage(page => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const renderValue = (column, row) => column.render ? column.render(row[column.key], row) : (row[column.key] ?? '-');
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Controls Bar */}
-      <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="surface overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         {searchable ? (
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full sm:max-w-md">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
             <input
-              type="text"
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              type="search"
+              className="input-field h-10 min-h-10 py-2 pl-10 pr-10 text-sm"
               placeholder={searchPlaceholder}
               value={searchTerm}
-              onChange={e => {
-                setSearchTerm(e.target.value);
+              onChange={event => {
+                setSearchTerm(event.target.value);
                 setCurrentPage(1);
               }}
+              aria-label={searchPlaceholder}
             />
+            {searchTerm && (
+              <button type="button" onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-400 hover:bg-slate-100 hover:text-ink-700" aria-label="Clear search">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         ) : <div />}
 
-        {onExport && (
-          <button
-            onClick={onExport}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <Download className="w-4 h-4 text-gray-500" />
-            {exportLabel}
-          </button>
-        )}
+        <div className="flex items-center justify-between gap-3 sm:justify-end">
+          <span className="text-xs font-medium text-ink-500">{filteredData.length} {filteredData.length === 1 ? 'record' : 'records'}</span>
+          {onExport && (
+            <button type="button" onClick={onExport} className="btn-secondary min-h-10 px-3.5 py-2 text-sm">
+              <Download className="h-4 w-4 text-ink-500" />
+              {exportLabel}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Table Area */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      {mobileCards && (
+        <div className="divide-y divide-slate-100 md:hidden">
+          {paginatedData.length === 0 ? (
+            <div className="empty-state">
+              <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-ink-400"><Inbox className="h-6 w-6" /></span>
+              <p className="text-sm font-semibold text-ink-700">{emptyMessage}</p>
+              <p className="mt-1 text-xs text-ink-500">Try changing your search or filters.</p>
+            </div>
+          ) : paginatedData.map((row, rowIndex) => (
+            <article key={row.id || `${startIndex}-${rowIndex}`} className="space-y-3 p-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {columns.filter(column => column.key !== 'actions').map((column, columnIndex) => (
+                  <div key={`${column.key}-${columnIndex}`} className={column.align === 'right' ? 'text-right' : ''}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-ink-400">{column.label}</p>
+                    <div className="mt-1 text-sm text-ink-800">{renderValue(column, row)}</div>
+                  </div>
+                ))}
+              </div>
+              {columns.some(column => column.key === 'actions') && (
+                <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+                  {columns.filter(column => column.key === 'actions').map((column, columnIndex) => (
+                    <div key={`actions-${columnIndex}`}>{renderValue(column, row)}</div>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+
+      <div className={`${mobileCards ? 'hidden md:block' : ''} overflow-x-auto`}>
+        <table className="w-full min-w-[720px] border-collapse text-left">
+          <caption className="sr-only">Data report</caption>
           <thead>
-            <tr className="bg-gray-50/80 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              {columns.map((col, idx) => (
-                <th
-                  key={col.key || idx}
-                  className={`px-4 py-3 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
-                >
-                  {col.label}
+            <tr className="border-b border-slate-200">
+              {columns.map((column, index) => (
+                <th key={`${column.key}-${index}`} scope="col" className={`table-header ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : ''}`}>
+                  {column.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
+          <tbody className="divide-y divide-slate-100">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-400 font-medium">
-                  {emptyMessage}
+                <td colSpan={columns.length} className="px-5 py-14 text-center">
+                  <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-ink-400"><Inbox className="h-6 w-6" /></span>
+                  <p className="text-sm font-semibold text-ink-700">{emptyMessage}</p>
+                  <p className="mt-1 text-xs text-ink-500">Try changing your search or filters.</p>
                 </td>
               </tr>
-            ) : (
-              paginatedData.map((row, rIdx) => (
-                <tr key={row.id || rIdx} className="hover:bg-orange-50/40 transition-colors">
-                  {columns.map((col, cIdx) => (
-                    <td
-                      key={cIdx}
-                      className={`px-4 py-3.5 text-gray-800 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
-                    >
-                      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '-')}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
+            ) : paginatedData.map((row, rowIndex) => (
+              <tr key={row.id || `${startIndex}-${rowIndex}`} className="transition-colors hover:bg-primary-50/40">
+                {columns.map((column, columnIndex) => (
+                  <td key={`${column.key}-${columnIndex}`} className={`table-cell ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : ''}`}>
+                    {renderValue(column, row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Footer */}
       {pagination && filteredData.length > 0 && (
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3.5 text-xs text-ink-500 sm:px-5">
           <span>
-            Showing <strong className="font-semibold text-gray-700">{startIndex + 1}</strong> to{' '}
-            <strong className="font-semibold text-gray-700">{Math.min(startIndex + pageSize, filteredData.length)}</strong> of{' '}
-            <strong className="font-semibold text-gray-700">{filteredData.length}</strong> records
+            Showing <strong className="font-semibold text-ink-700">{startIndex + 1}–{Math.min(startIndex + pageSize, filteredData.length)}</strong> of <strong className="font-semibold text-ink-700">{filteredData.length}</strong>
           </span>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => setCurrentPage(page => Math.max(1, page - 1))} disabled={currentPage === 1} className="icon-btn h-9 w-9 border border-slate-200 bg-white" aria-label="Previous page">
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="px-2 py-1 font-medium text-gray-700">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4" />
+            <span className="min-w-[54px] px-1 text-center font-semibold text-ink-600">{currentPage} / {totalPages}</span>
+            <button type="button" onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages} className="icon-btn h-9 w-9 border border-slate-200 bg-white" aria-label="Next page">
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>

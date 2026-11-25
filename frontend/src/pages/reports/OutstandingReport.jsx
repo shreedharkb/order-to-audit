@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
+import { downloadBlob } from '../../utils/download';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
@@ -15,6 +16,16 @@ export default function OutstandingReport() {
       .catch(err => toast.error('Failed to load receivables report'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleExport = async () => {
+    try {
+      const res = await client.get('/reports/export/outstanding', { responseType: 'blob' });
+      downloadBlob(res.data, `Outstanding_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success('Outstanding report exported to Excel');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
 
   const columns = [
     { key: 'customerName', label: 'Customer' },
@@ -41,9 +52,15 @@ export default function OutstandingReport() {
     },
     {
       key: 'ageing',
-      label: '61+ Days',
+      label: '61 - 90 Days',
       align: 'right',
-      render: val => formatCurrency((val?.days61to90Paisa || 0) + (val?.days90PlusPaisa || 0))
+      render: val => formatCurrency(val?.days61to90Paisa || 0)
+    },
+    {
+      key: 'ageing',
+      label: '90+ Days',
+      align: 'right',
+      render: val => formatCurrency(val?.days90PlusPaisa || 0)
     }
   ];
 
@@ -53,12 +70,14 @@ export default function OutstandingReport() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">Accounts Receivable & Ageing Analysis</h1>
-        <p className="text-sm text-gray-500">Customer outstanding balances stratified into FIFO ageing time buckets</p>
+        <p className="text-sm text-gray-500">Current customer balances as of {formatDate(new Date())}, aged using FIFO allocation</p>
       </div>
 
       <DataTable
         columns={columns}
         data={data}
+        onExport={handleExport}
+        exportLabel="Download Excel"
         searchPlaceholder="Search customer..."
       />
     </div>

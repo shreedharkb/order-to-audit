@@ -28,7 +28,7 @@ export default function SalesmanDashboard() {
           <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 mb-2">
             Field Mobile View
           </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Vanakkam, {user.fullName}!</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Vanakkam, {user.full_name}!</h1>
           <p className="text-orange-100 text-sm mt-1">Book orders directly to factory with live inventory verification.</p>
         </div>
         <Link

@@ -1,20 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
 import { formatCurrency } from '../../utils/format';
+import { downloadBlob } from '../../utils/download';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import toast from 'react-hot-toast';
 import { ShieldCheck, Download } from 'lucide-react';
 
 export default function GSTReport() {
   const [data, setData] = useState(null);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    client.get('/reports/gst-summary')
+  const fetchReport = (range = filters) => {
+    setLoading(true);
+    client.get('/reports/gst-summary', { params: range })
       .then(res => setData(res.data))
-      .catch(err => toast.error('Failed to load GST summary'))
+      .catch(() => toast.error('Failed to load GST summary'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReport({ dateFrom: '', dateTo: '' });
   }, []);
+
+  const handleApply = range => {
+    setFilters(range);
+    fetchReport(range);
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await client.get('/reports/export/gst', { params: filters, responseType: 'blob' });
+      downloadBlob(res.data, `GST_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success('GST summary exported to Excel');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
 
   if (loading) return <LoadingSpinner message="Calculating GST outward tax schedules..." />;
 
@@ -27,11 +50,18 @@ export default function GSTReport() {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">GST Outward Supplies (GSTR-1 / 3B)</h1>
           <p className="text-sm text-gray-500">Statutory tax summary grouped by HSN tax rates for direct GST filing</p>
         </div>
-        <div className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
-          <ShieldCheck className="w-4 h-4" />
-          <span>GSTIN: 33AABCS1429B1ZB (Tamil Nadu)</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4" />
+            <span>GSTIN: 33AABCS1429B1ZB (Tamil Nadu)</span>
+          </div>
+          <button onClick={handleExport} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2">
+            <Download className="w-4 h-4" /> Download Excel
+          </button>
         </div>
       </div>
+
+      <DateRangeFilter onApply={handleApply} loading={loading} />
 
       {/* Summary Schedule Table */}
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">

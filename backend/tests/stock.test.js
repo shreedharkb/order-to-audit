@@ -51,6 +51,20 @@ describe('Benchmark Maths & Calculations Verification', () => {
       expect(gstService.isInterState('33', '33')).toBe(false); // TN to TN
       expect(gstService.isInterState('33', '29')).toBe(true);  // TN to KA
     });
+
+    test('Invoice numbering reuses the caller transaction client', async () => {
+      const client = {
+        query: jest.fn(async (sql) => {
+          if (sql.includes("key = 'invoice_prefix'")) return { rows: [{ value: 'INV' }] };
+          if (sql.includes('FOR UPDATE')) return { rows: [{ value: '0' }] };
+          return { rows: [] };
+        })
+      };
+
+      await expect(gstService.generateInvoiceNumber(client)).resolves.toBe(`INV/${gstService.getFinancialYear()}/0001`);
+      expect(client.query).toHaveBeenCalledTimes(3);
+      expect(client.query.mock.calls.some(([sql]) => sql === 'BEGIN' || sql === 'COMMIT')).toBe(false);
+    });
   });
 
   describe('Inventory Arithmetic & Benchmark Balances', () => {

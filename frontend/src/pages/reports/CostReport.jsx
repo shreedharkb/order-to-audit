@@ -1,20 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
 import { formatCurrency } from '../../utils/format';
+import { downloadBlob } from '../../utils/download';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
 
 export default function CostReport() {
   const [data, setData] = useState([]);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    client.get('/reports/cost-analysis')
+  const fetchReport = (range = filters) => {
+    setLoading(true);
+    client.get('/reports/cost-analysis', { params: range })
       .then(res => setData(res.data))
-      .catch(err => toast.error('Failed to load cost analysis'))
+      .catch(() => toast.error('Failed to load cost analysis'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReport({ dateFrom: '', dateTo: '' });
   }, []);
+
+  const handleApply = range => {
+    setFilters(range);
+    fetchReport(range);
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await client.get('/reports/export/cost', { params: filters, responseType: 'blob' });
+      downloadBlob(res.data, `Cost_Analysis_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success('Cost analysis exported to Excel');
+    } catch (err) {
+      toast.error('Export failed');
+    }
+  };
 
   const columns = [
     { key: 'productName', label: 'Product' },
@@ -36,8 +59,6 @@ export default function CostReport() {
     }
   ];
 
-  if (loading) return <LoadingSpinner message="Calculating packet unit economics..." />;
-
   return (
     <div className="space-y-6">
       <div>
@@ -45,11 +66,17 @@ export default function CostReport() {
         <p className="text-sm text-gray-500">Weighted-average raw material costs + direct batch labour & utilities allocation</p>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data}
-        searchPlaceholder="Search product..."
-      />
+      <DateRangeFilter onApply={handleApply} loading={loading} />
+
+      {loading ? <LoadingSpinner message="Calculating packet unit economics..." /> : (
+        <DataTable
+          columns={columns}
+          data={data}
+          onExport={handleExport}
+          exportLabel="Download Excel"
+          searchPlaceholder="Search product..."
+        />
+      )}
     </div>
   );
 }

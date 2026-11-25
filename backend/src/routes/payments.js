@@ -4,22 +4,70 @@ const { pool } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
 const { logAudit } = require('../middleware/auditLog');
+const receivablesService = require('../services/receivablesService');
 
 router.use(authenticate);
 
-/**
- * POST /api/payments
- * Record a collection from customer against an invoice or on account
- */
-router.post('/', authorize('admin', 'owner', 'accountant'), async (req, res) => {
+router.post('/', authorize('admin', 'owner'), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { customerId, invoiceId, amountPaisa, paymentDate, mode, referenceNumber, notes } = req.body;
+    const amount = Number(amountPaisa);
 
-    if (!customerId || !amountPaisa) {
-      return res.status(400).json({ error: 'Customer ID and amount are required' });
+    if (!customerId || !Number.isInteger(amount) || amount <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Customer ID and a positive integer paisa amount are required' });
     }
 
-    const payRes = await pool.query(`
+    const customerRes = await client.query('SELECT id FROM customers WHERE id = $1 FOR UPDATE', [customerId]);
+    if (customerRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    if (invoiceId) {
+      const invoiceRes = await client.query(
+        "SELECT id, customer_id, total_paisa, status FROM invoices WHERE id = $1 FOR UPDATE",
+        [invoiceId]
+      );
+      const invoice = invoiceRes.rows[0];
+      if (!invoice) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (invoice.customer_id !== customerRes.rows[0].id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invoice does not belong to this customer' });
+      }
+      if (invoice.status !== 'active') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Cannot collect against a cancelled invoice' });
+      }
+
+      const paidRes = await client.query(
+        'SELECT COALESCE(SUM(amount_paisa), 0) AS paid FROM payments WHERE invoice_id = $1 AND is_reversed = FALSE',
+        [invoice.id]
+      );
+      const invoicePaid = parseInt(paidRes.rows[0].paid, 10);
+      if (invoicePaid + amount > parseInt(invoice.total_paisa, 10)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Payment exceeds the invoice balance' });
+      }
+    }
+
+    const balanceRes = await client.query(`
+      SELECT
+        (SELECT COALESCE(SUM(total_paisa), 0) FROM invoices WHERE customer_id = $1 AND status = 'active') AS invoiced,
+        (SELECT COALESCE(SUM(amount_paisa), 0) FROM payments WHERE customer_id = $1 AND is_reversed = FALSE) AS paid
+    `, [customerId]);
+    const outstanding = parseInt(balanceRes.rows[0].invoiced, 10) - parseInt(balanceRes.rows[0].paid, 10);
+    if (outstanding <= 0 || amount > outstanding) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Payment exceeds the customer outstanding balance' });
+    }
+
+    const payRes = await client.query(`
       INSERT INTO payments (
         customer_id, invoice_id, payment_date, amount_paisa, mode, reference_number, notes, created_by
       )
@@ -29,7 +77,7 @@ router.post('/', authorize('admin', 'owner', 'accountant'), async (req, res) => 
       customerId,
       invoiceId || null,
       paymentDate || new Date(),
-      parseInt(amountPaisa, 10),
+      amount,
       mode || 'cash',
       referenceNumber || null,
       notes || null,
@@ -37,22 +85,19 @@ router.post('/', authorize('admin', 'owner', 'accountant'), async (req, res) => 
     ]);
 
     const payment = payRes.rows[0];
-    await logAudit(pool, 'payments', payment.id, 'create', null, payment, req.user.id);
+    await logAudit(client, 'payments', payment.id, 'create', null, payment, req.user.id);
+    await client.query('COMMIT');
 
-    res.status(201).json({
-      message: 'Payment recorded successfully',
-      payment
-    });
+    res.status(201).json({ message: 'Payment recorded successfully', payment });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
-/**
- * GET /api/payments
- * List payment collections
- */
-router.get('/', async (req, res) => {
+router.get('/', authorize('admin', 'owner', 'accountant'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*, c.name AS customer_name, i.invoice_number, u.full_name AS recorded_by_name
@@ -68,89 +113,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-/**
- * GET /api/payments/outstanding
- * Customer receivables with ageing analysis (0-30, 31-60, 61-90, 90+ days)
- */
-router.get('/outstanding', async (req, res) => {
+router.get('/outstanding', authorize('admin', 'owner', 'accountant'), async (req, res) => {
   try {
-    // 1. Fetch all customers
-    const custRes = await pool.query('SELECT id, name, type, gstin, city, state, phone FROM customers ORDER BY name');
-    const customers = custRes.rows;
-
-    const report = [];
-
-    for (const cust of customers) {
-      // Invoiced total (active invoices only)
-      const invRes = await pool.query(`
-        SELECT id, invoice_number, invoice_date, total_paisa,
-               (CURRENT_DATE - invoice_date) AS age_days
-        FROM invoices
-        WHERE customer_id = $1 AND status = 'active'
-        ORDER BY invoice_date ASC
-      `, [cust.id]);
-
-      // Paid total
-      const paidRes = await pool.query(`
-        SELECT COALESCE(SUM(amount_paisa), 0) AS total_paid
-        FROM payments
-        WHERE customer_id = $1
-      `, [cust.id]);
-
-      let totalInvoiced = 0;
-      invRes.rows.forEach(inv => totalInvoiced += parseInt(inv.total_paisa, 10));
-      const totalPaid = parseInt(paidRes.rows[0]?.total_paid || 0, 10);
-      const outstanding = totalInvoiced - totalPaid;
-
-      // Ageing buckets calculation
-      let current0to30 = 0;
-      let days31to60 = 0;
-      let days61to90 = 0;
-      let days90Plus = 0;
-
-      // Unallocated remaining payments applied FIFO to oldest invoices
-      let remainingPayment = totalPaid;
-
-      for (const inv of invRes.rows) {
-        const invTotal = parseInt(inv.total_paisa, 10);
-        let unpaidPortion = 0;
-
-        if (remainingPayment >= invTotal) {
-          remainingPayment -= invTotal;
-          unpaidPortion = 0;
-        } else {
-          unpaidPortion = invTotal - remainingPayment;
-          remainingPayment = 0;
-        }
-
-        if (unpaidPortion > 0) {
-          const age = parseInt(inv.age_days || 0, 10);
-          if (age <= 30) current0to30 += unpaidPortion;
-          else if (age <= 60) days31to60 += unpaidPortion;
-          else if (age <= 90) days61to90 += unpaidPortion;
-          else days90Plus += unpaidPortion;
-        }
-      }
-
-      report.push({
-        customerId: cust.id,
-        customerName: cust.name,
-        customerType: cust.type,
-        state: cust.state,
-        phone: cust.phone,
-        totalInvoicedPaisa: totalInvoiced,
-        totalPaidPaisa: totalPaid,
-        outstandingPaisa: outstanding,
-        ageing: {
-          current0to30Paisa: current0to30,
-          days31to60Paisa: days31to60,
-          days61to90Paisa: days61to90,
-          days90PlusPaisa: days90Plus
-        }
-      });
-    }
-
-    res.json(report);
+    res.json(await receivablesService.getOutstandingReport(pool));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

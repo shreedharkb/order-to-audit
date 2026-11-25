@@ -27,14 +27,11 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  const login = async (username, password) => {
-    const res = await client.post('/auth/login', { username, password });
-    const { token: newToken, user: userData } = res.data;
+  const login = (newToken, userData) => {
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(newToken);
     setUser(userData);
-    return userData;
   };
 
   const logout = () => {

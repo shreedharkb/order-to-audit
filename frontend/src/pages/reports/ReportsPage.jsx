@@ -34,11 +34,25 @@ export default function ReportsPage() {
       color: 'bg-purple-50 text-purple-600 border-purple-200'
     },
     {
+      title: 'Purchase Register',
+      desc: 'Supplier-wise raw material and packaging receipts with quantity, rate, and value',
+      path: '/reports/purchases',
+      icon: FileText,
+      color: 'bg-cyan-50 text-cyan-600 border-cyan-200'
+    },
+    {
       title: 'Production Variance Report',
       desc: 'Recipe consumption vs actual yield, scrap rates, and tolerance alerts (>3%)',
       path: '/reports/production',
       icon: Factory,
       color: 'bg-amber-50 text-amber-600 border-amber-200'
+    },
+    {
+      title: 'Payments & Collections',
+      desc: 'Customer receipts by date, mode, invoice reference, and reversal status',
+      path: '/reports/collections',
+      icon: Wallet,
+      color: 'bg-teal-50 text-teal-600 border-teal-200'
     },
     {
       title: 'Receivables & Ageing Analysis',

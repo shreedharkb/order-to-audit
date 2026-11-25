@@ -1,36 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { downloadBlob } from '../../utils/download';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
+import DateRangeFilter from '../../components/DateRangeFilter';
 import toast from 'react-hot-toast';
 
 export default function SalesReport() {
   const [report, setReport] = useState(null);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
 
-  const fetchReport = () => {
+  const fetchReport = (range = filters) => {
     setLoading(true);
-    client.get('/reports/sales')
+    client.get('/reports/sales', { params: range })
       .then(res => setReport(res.data))
-      .catch(err => toast.error('Failed to load sales register'))
+      .catch(() => toast.error('Failed to load sales register'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchReport();
+    fetchReport({ dateFrom: '', dateTo: '' });
   }, []);
+
+  const handleApply = range => {
+    setFilters(range);
+    fetchReport(range);
+  };
 
   const handleExport = async () => {
     try {
-      const res = await client.get('/reports/export/sales', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Sales_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const res = await client.get('/reports/export/sales', { params: filters, responseType: 'blob' });
+      downloadBlob(res.data, `Sales_Register_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success('Sales Register exported to Excel');
     } catch (err) {
       toast.error('Export failed');
@@ -49,25 +51,45 @@ export default function SalesReport() {
     { key: 'total_paisa', label: 'Invoice Total', align: 'right', render: val => <span className="font-bold">{formatCurrency(val)}</span> }
   ];
 
-  if (loading) return <LoadingSpinner message="Generating Sales Register..." />;
+  const customerColumns = [
+    { key: 'customer_name', label: 'Customer' },
+    { key: 'customer_state', label: 'State' },
+    { key: 'invoice_count', label: 'Invoices', align: 'right' },
+    { key: 'taxable_paisa', label: 'Taxable', align: 'right', render: val => formatCurrency(val) },
+    { key: 'total_paisa', label: 'Total Sales', align: 'right', render: val => <span className="font-bold">{formatCurrency(val)}</span> }
+  ];
+
+  const productColumns = [
+    { key: 'item_name', label: 'Product' },
+    { key: 'hsn_code', label: 'HSN' },
+    { key: 'total_qty', label: 'Quantity', align: 'right' },
+    { key: 'unit', label: 'Unit' },
+    { key: 'taxable_paisa', label: 'Taxable', align: 'right', render: val => formatCurrency(val) },
+    { key: 'total_paisa', label: 'Total Sales', align: 'right', render: val => <span className="font-bold">{formatCurrency(val)}</span> }
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Sales Register & Outward Supplies</h1>
-          <p className="text-sm text-gray-500">Auditor-grade register with customer-wise and product-wise breakdowns</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Sales Register & Outward Supplies</h1>
+        <p className="text-sm text-gray-500">Auditor-grade register with customer-wise and product-wise breakdowns</p>
       </div>
 
-      <div className="space-y-4">
-        <DataTable
-          columns={invoiceColumns}
-          data={report?.invoices || []}
-          onExport={handleExport}
-          exportLabel="Download Excel"
-        />
-      </div>
+      <DateRangeFilter onApply={handleApply} loading={loading} />
+
+      {loading ? <LoadingSpinner message="Generating Sales Register..." /> : (
+        <div className="space-y-6">
+          <DataTable columns={invoiceColumns} data={report?.invoices || []} onExport={handleExport} exportLabel="Download Excel" />
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Customer-wise Sales</h2>
+            <DataTable columns={customerColumns} data={report?.customerSummary || []} searchable={false} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Product-wise Sales</h2>
+            <DataTable columns={productColumns} data={report?.productSummary || []} searchable={false} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

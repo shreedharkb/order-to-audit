@@ -25,6 +25,8 @@ import SalesReport from './pages/reports/SalesReport';
 import GSTReport from './pages/reports/GSTReport';
 import StockReport from './pages/reports/StockReport';
 import ProductionReport from './pages/reports/ProductionReport';
+import PurchaseReport from './pages/reports/PurchaseReport';
+import CollectionsReport from './pages/reports/CollectionsReport';
 import OutstandingReport from './pages/reports/OutstandingReport';
 import CostReport from './pages/reports/CostReport';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
@@ -119,7 +121,7 @@ export default function App() {
       <Route
         path="/admin/payments"
         element={
-          <ProtectedRoute roles={['admin', 'owner', 'accountant']}>
+          <ProtectedRoute roles={['admin', 'owner']}>
             <Layout><PaymentManagement /></Layout>
           </ProtectedRoute>
         }
@@ -213,6 +215,22 @@ export default function App() {
         element={
           <ProtectedRoute roles={['accountant', 'admin', 'owner', 'production']}>
             <Layout><ProductionReport /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/purchases"
+        element={
+          <ProtectedRoute roles={['accountant', 'admin', 'owner']}>
+            <Layout><PurchaseReport /></Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/collections"
+        element={
+          <ProtectedRoute roles={['accountant', 'admin', 'owner']}>
+            <Layout><CollectionsReport /></Layout>
           </ProtectedRoute>
         }
       />

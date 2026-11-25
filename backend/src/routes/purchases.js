@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
 const { logAudit } = require('../middleware/auditLog');
 const stockService = require('../services/stockService');
+const unitService = require('../services/unitService');
 
 router.use(authenticate);
 
@@ -19,22 +20,57 @@ router.post('/', authorize('admin', 'production', 'owner'), async (req, res) => 
     const { supplierId, purchaseDate, invoiceNumber, items, notes } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'At least one item is required in a purchase' });
+    }
+
+    if (supplierId) {
+      const supplierRes = await client.query('SELECT id FROM suppliers WHERE id = $1', [supplierId]);
+      if (supplierRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Supplier not found' });
+      }
     }
 
     let totalPaisa = 0;
     const linesToInsert = [];
+    const seenItems = new Set();
 
     for (const it of items) {
-      const qty = parseFloat(it.qty);
-      const ratePaisa = parseInt(it.ratePaisa, 10);
-      const amountPaisa = Math.round(qty * ratePaisa);
-      totalPaisa += amountPaisa;
+      const itemId = Number(it.itemId);
+      const qty = Number(it.qty);
+      const ratePaisa = Number(it.ratePaisa);
+      if (seenItems.has(itemId)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Duplicate purchase line item' });
+      }
+      seenItems.add(itemId);
+      if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(ratePaisa) || ratePaisa < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Purchase quantities must be positive and rates non-negative integer paisa' });
+      }
 
+      const itemRes = await client.query('SELECT * FROM items WHERE id = $1 FOR UPDATE', [itemId]);
+      const item = itemRes.rows[0];
+      if (!item || !['raw_material', 'packaging'].includes(item.type)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Purchases can contain only raw materials and packaging' });
+      }
+
+      let normalizedQty;
+      try {
+        normalizedQty = unitService.normalizeQuantity(qty, it.unit || item.unit, item.unit);
+      } catch (unitErr) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: unitErr.message });
+      }
+
+      const amountPaisa = Math.round(normalizedQty * ratePaisa);
+      totalPaisa += amountPaisa;
       linesToInsert.push({
-        itemId: it.itemId,
-        qty,
-        unit: it.unit,
+        itemId,
+        qty: normalizedQty,
+        unit: item.unit,
         ratePaisa,
         amountPaisa
       });
@@ -70,8 +106,8 @@ router.post('/', authorize('admin', 'production', 'owner'), async (req, res) => 
       });
     }
 
+    await logAudit(client, 'purchases', newPurchase.id, 'create', null, newPurchase, req.user.id);
     await client.query('COMMIT');
-    await logAudit(pool, 'purchases', newPurchase.id, 'create', null, newPurchase, req.user.id);
 
     res.status(201).json({
       message: 'Purchase recorded and raw stock updated',
@@ -89,7 +125,7 @@ router.post('/', authorize('admin', 'production', 'owner'), async (req, res) => 
  * GET /api/purchases
  * List purchases
  */
-router.get('/', async (req, res) => {
+router.get('/', authorize('admin', 'production', 'owner', 'accountant'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*, s.name AS supplier_name
@@ -107,7 +143,7 @@ router.get('/', async (req, res) => {
  * GET /api/purchases/:id
  * Purchase detail with lines
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authorize('admin', 'production', 'owner', 'accountant'), async (req, res) => {
   try {
     const pRes = await pool.query(`
       SELECT p.*, s.name AS supplier_name, s.gstin AS supplier_gstin

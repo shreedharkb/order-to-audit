@@ -67,6 +67,13 @@ const calculateRunCost = async (pool, runId) => {
     [totalMaterialCost, finalLabour, finalOverhead, totalCost, costPerUnit, runId]
   );
 
+  await pool.query(
+    `UPDATE stock_ledger
+     SET rate_paisa = $1
+     WHERE txn_ref_type = 'production_run' AND txn_ref_id = $2 AND txn_type = 'production_output'`,
+    [costPerUnit, runId]
+  );
+
   return {
     totalMaterialCost,
     labourCost: finalLabour,

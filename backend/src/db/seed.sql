@@ -36,10 +36,12 @@ INSERT INTO items (name, type, unit, hsn_code, gst_rate_percent, description) VA
 ON CONFLICT DO NOTHING;
 
 -- Items: Packaging
-INSERT INTO items (name, type, unit, hsn_code, gst_rate_percent, description) VALUES
-    ('200g Pouch', 'packaging', 'piece', '39232990', 18.00, 'Printed laminated pouch for 200g murukku'),
-    ('Carton (20 packets)', 'packaging', 'piece', '48191000', 18.00, 'Corrugated carton holding 20 packets')
-ON CONFLICT DO NOTHING;
+INSERT INTO items (name, type, unit, hsn_code, gst_rate_percent, packaging_role, pack_capacity, description) VALUES
+    ('200g Pouch', 'packaging', 'piece', '39232990', 18.00, 'pouch', NULL, 'Printed laminated pouch for 200g murukku'),
+    ('Carton (20 packets)', 'packaging', 'piece', '48191000', 18.00, 'carton', 20, 'Corrugated carton holding 20 packets')
+ON CONFLICT (name) DO UPDATE SET
+    packaging_role = EXCLUDED.packaging_role,
+    pack_capacity = EXCLUDED.pack_capacity;
 
 -- Items: Finished goods
 INSERT INTO items (name, type, unit, hsn_code, gst_rate_percent, selling_price_paisa, description) VALUES
@@ -90,24 +92,31 @@ WHERE NOT EXISTS (SELECT 1 FROM bom_lines bl WHERE bl.bom_id = b.id AND bl.item_
 
 -- Opening stock balances
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 100, 0, 'kg', 4200, 'Opening stock', 1 FROM items WHERE name = 'Rice Flour';
+SELECT id, CURRENT_DATE, 'opening_balance', 100, 0, 'kg', 4200, 'Opening stock', 1 FROM items WHERE name = 'Rice Flour'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'litre', 14000, 'Opening stock', 1 FROM items WHERE name = 'Cooking Oil';
+SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'litre', 14000, 'Opening stock', 1 FROM items WHERE name = 'Cooking Oil'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 5, 0, 'kg', 20000, 'Opening stock', 1 FROM items WHERE name = 'Salt and Spice Mix';
+SELECT id, CURRENT_DATE, 'opening_balance', 5, 0, 'kg', 20000, 'Opening stock', 1 FROM items WHERE name = 'Salt and Spice Mix'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 500, 0, 'piece', 250, 'Opening stock', 1 FROM items WHERE name = '200g Pouch';
+SELECT id, CURRENT_DATE, 'opening_balance', 500, 0, 'piece', 250, 'Opening stock', 1 FROM items WHERE name = '200g Pouch'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'piece', 1500, 'Opening stock', 1 FROM items WHERE name = 'Carton (20 packets)';
+SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'piece', 1500, 'Opening stock', 1 FROM items WHERE name = 'Carton (20 packets)'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
-SELECT id, CURRENT_DATE, 'opening_balance', 50, 0, 'packet', 0, 'Opening stock - 50 packets', 1 FROM items WHERE name = 'Murukku 200g';
+SELECT id, CURRENT_DATE, 'opening_balance', 50, 0, 'packet', 0, 'Opening stock - 50 packets', 1 FROM items WHERE name = 'Murukku 200g'
+ON CONFLICT DO NOTHING;
 
 -- Default price list
 INSERT INTO price_lists (item_id, price_paisa, effective_from)
-SELECT id, 5000, CURRENT_DATE FROM items WHERE name = 'Murukku 200g';
+SELECT id, 5000, CURRENT_DATE FROM items WHERE name = 'Murukku 200g'
+ON CONFLICT DO NOTHING;
 

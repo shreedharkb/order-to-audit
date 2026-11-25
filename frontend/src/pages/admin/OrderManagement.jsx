@@ -4,13 +4,16 @@ import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '../.
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { CheckCircle2, XCircle, AlertTriangle, FileText, Package } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, FileText, Package, Pencil, Save } from 'lucide-react';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stockModalOrder, setStockModalOrder] = useState(null);
   const [stockCheckData, setStockCheckData] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editLines, setEditLines] = useState([]);
+  const [editNotes, setEditNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchOrders = () => {
@@ -71,6 +74,44 @@ export default function OrderManagement() {
     }
   };
 
+  const handleEditOrder = async (order) => {
+    try {
+      const res = await client.get(`/orders/${order.id}`);
+      setEditingOrder(res.data);
+      setEditLines(res.data.lines.map(line => ({
+        itemId: line.item_id,
+        name: line.item_name,
+        unit: line.unit,
+        qty: line.qty,
+        price: (line.price_paisa / 100).toFixed(2)
+      })));
+      setEditNotes(res.data.notes || '');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to load order for editing');
+    }
+  };
+
+  const handleSaveOrder = async () => {
+    setActionLoading(true);
+    try {
+      await client.put(`/orders/${editingOrder.id}`, {
+        notes: editNotes,
+        items: editLines.map(line => ({
+          itemId: line.itemId,
+          qty: Number(line.qty),
+          pricePaisa: Math.round(Number(line.price) * 100)
+        }))
+      });
+      toast.success('Order updated');
+      setEditingOrder(null);
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update order');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCreateInvoice = async (orderId) => {
     try {
       const res = await client.post('/invoices', { orderId });
@@ -105,6 +146,12 @@ export default function OrderManagement() {
         <div className="flex items-center justify-end space-x-2">
           {row.status === 'submitted' && (
             <>
+              <button
+                onClick={() => handleEditOrder(row)}
+                className="px-2.5 py-1 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 inline-flex items-center gap-1"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
               <button
                 onClick={() => handleStockCheck(row)}
                 className="px-2.5 py-1 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
@@ -157,6 +204,73 @@ export default function OrderManagement() {
           data={orders}
           searchPlaceholder="Search order, customer, state..."
         />
+      )}
+
+      {editingOrder && (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Verify Order</h3>
+                <p className="text-xs text-gray-500">{editingOrder.order_number} · {editingOrder.customer_name}</p>
+              </div>
+              <button onClick={() => setEditingOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
+            </div>
+
+            <div className="space-y-3">
+              {editLines.map((line, index) => (
+                <div key={line.itemId} className="grid grid-cols-[1fr_100px_130px] gap-3 items-center bg-gray-50 p-3 rounded-xl">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{line.name}</p>
+                    <p className="text-xs text-gray-500">Quantity in {line.unit}</p>
+                  </div>
+                  <input
+                    type="number"
+                    min="0.0001"
+                    step="0.0001"
+                    value={line.qty}
+                    onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, qty: event.target.value } : item))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    aria-label={`Quantity for ${line.name}`}
+                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 text-sm">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={line.price}
+                      onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, price: event.target.value } : item))}
+                      className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      aria-label={`Price for ${line.name}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <textarea
+              value={editNotes}
+              onChange={event => setEditNotes(event.target.value)}
+              placeholder="Order notes"
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t">
+              <button onClick={() => setEditingOrder(null)} className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-xl">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveOrder}
+                disabled={actionLoading}
+                className="px-5 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md inline-flex items-center gap-2 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Stock Verification Modal */}
