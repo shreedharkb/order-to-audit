@@ -3,7 +3,9 @@
 > **A production-ready Enterprise Resource Planning (ERP) prototype bridging the Sales Loop and Recipe-Based Production Loop for a small packaged food manufacturer.**  
 > Built for the **Centre for Digital Infrastructure, National Institute of Technology, Tiruchirappalli** Internship Shortlisting Task.  
 > **Author:** Shreedhar K B (`23bcs126@iiitdwd.ac.in`) · IIIT Dharwad  
-> **Repository:** [https://github.com/shreedharkb/order-to-audit](https://github.com/shreedharkb/order-to-audit)
+> **🌐 Live Deployment:** [https://frontend-fawn-ten-48.vercel.app](https://frontend-fawn-ten-48.vercel.app)  
+> **🔗 Live API:** [https://backend-zeta-two-82.vercel.app/api](https://backend-zeta-two-82.vercel.app/api)  
+> **📁 Repository:** [https://github.com/shreedharkb/order-to-audit](https://github.com/shreedharkb/order-to-audit)
 
 ---
 
