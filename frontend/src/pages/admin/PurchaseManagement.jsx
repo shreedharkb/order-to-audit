@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { ShoppingCart, Plus, Check } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function PurchaseManagement() {
   const [purchases, setPurchases] = useState([]);
@@ -90,24 +90,21 @@ export default function PurchaseManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Raw Materials & Packaging Purchases</h1>
-        <p className="text-sm text-gray-500">Record inward shipments into the stock ledger to update raw stock and weighted average costing</p>
+        <h1 className="page-title">Raw material purchases</h1>
+        <p className="page-subtitle">Record inward shipments to update stock and weighted average costing.</p>
       </div>
 
       {/* Record Purchase Card (Pre-fill helper for Benchmark Step 1) */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm space-y-4">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <ShoppingCart className="w-5 h-5 text-orange-600" />
-          <span>Inward Material Entry (Benchmark Step 1)</span>
-        </h2>
+      <div className="card space-y-4">
+        <h2 className="section-title">Inward material entry</h2>
 
         <form onSubmit={handleRecordPurchase} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Supplier</label>
+            <label className="label">Supplier</label>
             <select
               value={supplierId}
               onChange={e => setSupplierId(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+              className="input-field"
             >
               <option value="">Select Supplier</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -115,11 +112,11 @@ export default function PurchaseManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Item</label>
+            <label className="label">Item</label>
             <select
               value={selectedItemId}
               onChange={e => setSelectedItemId(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-semibold"
+              className="input-field"
               required
             >
               <option value="">Select Raw Item</option>
@@ -128,7 +125,7 @@ export default function PurchaseManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Quantity</label>
+            <label className="label">Quantity</label>
             <input
               type="number"
               step="any"
@@ -141,7 +138,7 @@ export default function PurchaseManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Rate (Rs / unit)</label>
+            <label className="label">Rate (Rs / unit)</label>
             <input
               type="number"
               step="any"
@@ -157,7 +154,7 @@ export default function PurchaseManagement() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-1"
+              className="btn-primary w-full"
             >
               <Plus className="w-4 h-4" />
               <span>Record</span>
@@ -165,8 +162,8 @@ export default function PurchaseManagement() {
           </div>
         </form>
 
-        <div className="p-3 bg-orange-50 rounded-xl text-xs text-orange-950 flex items-center justify-between">
-          <span>💡 <strong>Benchmark Quick Fill:</strong> Select <em>Rice Flour</em>, Qty: <strong>60 kg</strong>, Rate: <strong>Rs 45</strong> to execute Benchmark Step 1.</span>
+        <div className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs leading-5 text-orange-950 sm:flex-row sm:items-center sm:justify-between">
+          <span><strong>Quick fill:</strong> Select <em>Rice Flour</em>, quantity <strong>60 kg</strong>, rate <strong>Rs 45</strong>.</span>
           <button
             type="button"
             onClick={() => {

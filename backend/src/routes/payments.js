@@ -14,10 +14,16 @@ router.post('/', authorize('admin', 'owner'), async (req, res) => {
     await client.query('BEGIN');
     const { customerId, invoiceId, amountPaisa, paymentDate, mode, referenceNumber, notes } = req.body;
     const amount = Number(amountPaisa);
+    const paymentMode = mode || 'cash';
+    const allowedModes = ['cash', 'cheque', 'upi', 'neft', 'rtgs', 'other'];
 
     if (!customerId || !Number.isInteger(amount) || amount <= 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Customer ID and a positive integer paisa amount are required' });
+    }
+    if (!allowedModes.includes(paymentMode)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Unsupported payment mode' });
     }
 
     const customerRes = await client.query('SELECT id FROM customers WHERE id = $1 FOR UPDATE', [customerId]);
@@ -78,7 +84,7 @@ router.post('/', authorize('admin', 'owner'), async (req, res) => {
       invoiceId || null,
       paymentDate || new Date(),
       amount,
-      mode || 'cash',
+      paymentMode,
       referenceNumber || null,
       notes || null,
       req.user.id

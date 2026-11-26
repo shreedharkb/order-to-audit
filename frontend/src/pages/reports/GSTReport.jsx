@@ -5,7 +5,9 @@ import { downloadBlob } from '../../utils/download';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DateRangeFilter from '../../components/DateRangeFilter';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 
 export default function GSTReport() {
   const [data, setData] = useState(null);
@@ -47,24 +49,21 @@ export default function GSTReport() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">GST Outward Supplies (GSTR-1 / 3B)</h1>
-          <p className="text-sm text-gray-500">Statutory tax summary grouped by HSN tax rates for direct GST filing</p>
+          <h1 className="page-title">GST Outward Supplies (GSTR-1 / 3B)</h1>
+          <p className="page-subtitle">Statutory tax summary grouped by HSN tax rates for direct GST filing</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4" />
-            <span>GSTIN: 33AABCS1429B1ZB (Tamil Nadu)</span>
-          </div>
-          <button onClick={handleExport} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2">
-            <Download className="w-4 h-4" /> Download Excel
-          </button>
+          <Badge variant="success">GSTIN: 33AABCS1429B1ZB (Tamil Nadu)</Badge>
+          <Button variant="secondary" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Download Excel
+          </Button>
         </div>
       </div>
 
       <DateRangeFilter onApply={handleApply} loading={loading} />
 
       {/* Summary Schedule Table */}
-      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div className="p-4 border-b bg-gray-50/70 font-bold text-gray-800 text-sm">
           Table 4 & 5: Taxable Outward Supplies Schedule
         </div>
@@ -79,25 +78,25 @@ export default function GSTReport() {
                 <th className="p-3 text-right">Central Tax (CGST)</th>
                 <th className="p-3 text-right">State Tax (SGST)</th>
                 <th className="p-3 text-right">Integrated Tax (IGST)</th>
-                <th className="p-3 text-right font-black">Total Tax (Rs)</th>
-                <th className="p-3 text-right font-black">Gross Invoiced (Rs)</th>
+                <th className="p-3 text-right font-semibold">Total Tax (Rs)</th>
+                <th className="p-3 text-right font-semibold">Gross Invoiced (Rs)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rates.map((r, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
-                  <td className="p-3 font-black text-gray-900">{r.gstRatePercent}%</td>
+                  <td className="p-3 font-semibold text-gray-900">{r.gstRatePercent}%</td>
                   <td className="p-3 font-semibold text-gray-700">{r.supplyType}</td>
                   <td className="p-3 text-right font-medium">{formatCurrency(r.taxableAmountPaisa)}</td>
                   <td className="p-3 text-right text-gray-700">{formatCurrency(r.cgstPaisa)}</td>
                   <td className="p-3 text-right text-gray-700">{formatCurrency(r.sgstPaisa)}</td>
                   <td className="p-3 text-right text-gray-700">{formatCurrency(r.igstPaisa)}</td>
                   <td className="p-3 text-right font-bold text-orange-700">{formatCurrency(r.totalTaxPaisa)}</td>
-                  <td className="p-3 text-right font-black text-gray-900">{formatCurrency(r.totalPaisa)}</td>
+                  <td className="p-3 text-right font-semibold text-gray-900">{formatCurrency(r.totalPaisa)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50 font-black border-t-2 border-gray-300">
+            <tfoot className="bg-gray-50 font-semibold border-t-2 border-gray-300">
               <tr>
                 <td colSpan={2} className="p-3 text-gray-900">Consolidated Grand Total</td>
                 <td className="p-3 text-right text-gray-900">{formatCurrency(consolidated.totalTaxablePaisa)}</td>

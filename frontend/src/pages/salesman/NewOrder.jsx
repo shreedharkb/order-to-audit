@@ -4,7 +4,7 @@ import client from '../../api/client';
 import { formatCurrency } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { Store, ShoppingCart, CheckCircle2 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 
 export default function NewOrder() {
   const navigate = useNavigate();
@@ -98,21 +98,19 @@ export default function NewOrder() {
     <div className="max-w-2xl mx-auto space-y-6 pb-24">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Quick Order Booking</h1>
-        <p className="text-sm text-gray-500">Fast 1-minute order booking for field salesmen</p>
+        <h1 className="page-title">New sales order</h1>
+        <p className="page-subtitle">Select a customer and enter the quantities to book.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Step 1: Customer Selection */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-3">
-          <label className="flex items-center space-x-2 text-sm font-bold text-gray-900">
-            <Store className="w-4 h-4 text-orange-600" />
-            <span>Select Customer (Retailer / Distributor)</span>
-          </label>
+        <div className="card space-y-3">
+          <label htmlFor="order-customer" className="label">Customer</label>
           <select
+            id="order-customer"
             value={selectedCustomerId}
             onChange={e => setSelectedCustomerId(e.target.value)}
-            className="w-full p-3.5 bg-gray-50 border border-gray-300 rounded-xl font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="input-field"
             required
           >
             <option value="">-- Choose a customer --</option>
@@ -133,39 +131,35 @@ export default function NewOrder() {
         </div>
 
         {/* Step 2: Product Catalogue with direct Quantity inputs */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4">
-          <label className="flex items-center space-x-2 text-sm font-bold text-gray-900">
-            <ShoppingCart className="w-4 h-4 text-orange-600" />
-            <span>Add Products & Quantities</span>
-          </label>
+        <div className="card space-y-4">
+          <h2 className="section-title">Products and quantities</h2>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-100">
             {products.map(p => {
               const currentQty = quantities[p.id] || '';
 
               return (
-                <div key={p.id} className="py-4 flex items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">{p.name}</h3>
-                    <p className="text-xs text-gray-500">{p.description || 'Packaged snack'}</p>
-                    <p className="text-xs font-bold text-orange-600 mt-1">
+                <div key={p.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-ink-950">{p.name}</h3>
+                    <p className="mt-0.5 text-xs text-ink-500">{p.description || 'Packaged snack'}</p>
+                    <p className="mt-1 text-xs font-medium text-primary-700">
                       {formatCurrency(p.selling_price_paisa)} / {p.unit}
                     </p>
                   </div>
 
-                  <div className="flex items-center space-x-3">
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        value={currentQty}
-                        onChange={e => handleQtyChange(p.id, e.target.value)}
-                        className="w-full text-center py-2.5 px-2 border-2 border-orange-200 rounded-xl font-bold text-gray-900 focus:outline-none focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-base"
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500 font-medium w-12">{p.unit}s</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0"
+                      value={currentQty}
+                      onChange={e => handleQtyChange(p.id, e.target.value)}
+                      className="input-field w-24 text-center"
+                      aria-label={`Quantity for ${p.name}`}
+                    />
+                    <span className="w-12 text-xs text-ink-500">{p.unit}s</span>
                   </div>
                 </div>
               );
@@ -174,32 +168,31 @@ export default function NewOrder() {
         </div>
 
         {/* Step 3: Order Remarks */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-2">
-          <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Order Remarks (Optional)</label>
+        <div className="card space-y-2">
+          <label htmlFor="order-notes" className="label">Order remarks <span className="font-normal text-ink-500">(optional)</span></label>
           <textarea
+            id="order-notes"
             rows="2"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="Delivery instructions, urgent timing..."
-            className="w-full p-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Delivery instructions or urgent timing"
+            className="input-field"
           ></textarea>
         </div>
 
         {/* Sticky Mobile Summary Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-2xl z-20">
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
             <div>
-              <p className="text-xs text-gray-500 font-semibold">Total Order Value</p>
-              <p className="text-xl sm:text-2xl font-black text-gray-900">{formatCurrency(orderTotalPaisa)}</p>
+              <p className="text-xs text-ink-500">Total order value</p>
+              <p className="text-xl font-semibold text-ink-950">{formatCurrency(orderTotalPaisa)}</p>
             </div>
-            <button
+            <Button
               type="submit"
               disabled={submitting || itemsToSubmit.length === 0 || !selectedCustomerId}
-              className="inline-flex items-center justify-center space-x-2 px-6 py-3.5 bg-orange-600 text-white rounded-xl font-bold text-sm sm:text-base hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-orange-900/20 transition-all"
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>{submitting ? 'Transmitting...' : 'Submit Order'}</span>
-            </button>
+              {submitting ? 'Submitting...' : 'Submit order'}
+            </Button>
           </div>
         </div>
       </form>

@@ -71,8 +71,8 @@ export default function SalesReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Sales Register & Outward Supplies</h1>
-        <p className="text-sm text-gray-500">Auditor-grade register with customer-wise and product-wise breakdowns</p>
+        <h1 className="page-title">Sales Register & Outward Supplies</h1>
+        <p className="page-subtitle">Auditor-grade register with customer-wise and product-wise breakdowns</p>
       </div>
 
       <DateRangeFilter onApply={handleApply} loading={loading} />

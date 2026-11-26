@@ -57,3 +57,19 @@ export function getStatusLabel(status) {
   };
   return labels[status] || status;
 }
+
+export function getStatusVariant(status) {
+  const variants = {
+    submitted: 'warning',
+    approved: 'info',
+    invoiced: 'secondary',
+    dispatched: 'success',
+    rejected: 'danger',
+    cancelled: 'default',
+    draft: 'default',
+    in_progress: 'info',
+    completed: 'success',
+    active: 'success',
+  };
+  return variants[status] || 'default';
+}

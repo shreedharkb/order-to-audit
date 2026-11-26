@@ -5,7 +5,9 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { FileDown, Truck, Eye, ShieldCheck } from 'lucide-react';
+import { FileDown, Truck, Eye } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 
 export default function InvoiceManagement() {
   const [invoices, setInvoices] = useState([]);
@@ -58,21 +60,21 @@ export default function InvoiceManagement() {
       key: 'is_igst',
       label: 'Supply Type',
       render: (val) => (
-        <span className={`px-2 py-0.5 rounded text-xs font-bold ${val ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+        <Badge variant={val ? 'secondary' : 'info'}>
           {val ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}
-        </span>
+        </Badge>
       )
     },
     { key: 'subtotal_paisa', label: 'Taxable (Rs)', align: 'right', render: (val) => formatCurrency(val) },
     { key: 'total_tax_paisa', label: 'GST Tax (Rs)', align: 'right', render: (val) => formatCurrency(val) },
-    { key: 'total_paisa', label: 'Invoice Total', align: 'right', render: (val) => <span className="font-extrabold text-gray-900">{formatCurrency(val)}</span> },
+    { key: 'total_paisa', label: 'Invoice Total', align: 'right', render: (val) => <span className="font-semibold text-ink-950">{formatCurrency(val)}</span> },
     {
       key: 'is_dispatched',
       label: 'Fulfillment',
-      render: (val) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${val ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-          {val ? 'Dispatched' : 'Pending Dispatch'}
-        </span>
+      render: (val, row) => (
+        <Badge variant={row.status === 'cancelled' ? 'danger' : val ? 'success' : 'warning'}>
+          {row.status === 'cancelled' ? 'Cancelled' : val ? 'Dispatched' : 'Pending dispatch'}
+        </Badge>
       )
     },
     {
@@ -81,31 +83,21 @@ export default function InvoiceManagement() {
       align: 'right',
       render: (_, row) => (
         <div className="flex items-center justify-end space-x-1.5">
-          <Link
-            to={`/admin/invoices/${row.id}`}
-            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-            title="View Invoice"
-          >
-            <Eye className="w-4 h-4" />
-          </Link>
+          <Button asChild variant="ghost" size="icon" className="h-8 w-8" aria-label={`View invoice ${row.invoice_number}`}>
+            <Link to={`/admin/invoices/${row.id}`}>
+              <Eye className="h-4 w-4" />
+            </Link>
+          </Button>
 
-          <button
-            onClick={() => handleDownloadPDF(row.id, row.invoice_number)}
-            className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg"
-            title="Download GST PDF"
-          >
-            <FileDown className="w-4 h-4" />
-          </button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadPDF(row.id, row.invoice_number)} aria-label={`Download PDF for ${row.invoice_number}`}>
+            <FileDown className="h-4 w-4" />
+          </Button>
 
-          {!row.is_dispatched && (
-            <button
-              onClick={() => handleDispatch(row.id)}
-              className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg inline-flex items-center gap-1 shadow-sm"
-              title="Record Dispatch"
-            >
-              <Truck className="w-3.5 h-3.5" />
-              <span>Dispatch</span>
-            </button>
+          {row.status === 'active' && !row.is_dispatched && (
+            <Button size="sm" onClick={() => handleDispatch(row.id)} className="bg-emerald-600 hover:bg-emerald-700">
+              <Truck className="h-3.5 w-3.5" />
+              Dispatch
+            </Button>
           )}
         </div>
       )
@@ -116,8 +108,8 @@ export default function InvoiceManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">GST Tax Invoices</h1>
-          <p className="text-sm text-gray-500">Statutory GST outward supply invoices, dispatch logging, and PDF generation</p>
+          <h1 className="page-title">GST Tax Invoices</h1>
+          <p className="page-subtitle">Statutory GST outward supply invoices, dispatch logging, and PDF generation</p>
         </div>
       </div>
 

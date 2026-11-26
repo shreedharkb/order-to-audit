@@ -45,9 +45,29 @@ router.get('/owner', authorize('owner', 'admin'), async (req, res) => {
       ORDER BY pr.run_date DESC LIMIT 5
     `, [tolerance]);
 
+    const materialVarianceRes = await pool.query(`
+      SELECT pi.id, pr.id AS run_id, pr.batch_number, pr.run_date,
+             i.name AS item_name, pi.planned_qty, pi.actual_qty, pi.unit,
+             ROUND(pi.variance_percent, 2) AS variance_percent
+      FROM production_issues pi
+      JOIN production_runs pr ON pr.id = pi.run_id
+      JOIN items i ON i.id = pi.item_id
+      WHERE pr.status = 'completed' AND ABS(pi.variance_percent) > $1
+      ORDER BY pr.run_date DESC, pr.id DESC, pi.id DESC LIMIT 5
+    `, [tolerance]);
+
+    const latestRunCostRes = await pool.query(`
+      SELECT pr.id, pr.batch_number, pr.cost_per_unit_paisa, i.name AS finished_item_name
+      FROM production_runs pr
+      JOIN bom b ON b.id = pr.bom_id
+      JOIN items i ON i.id = b.finished_item_id
+      WHERE pr.status = 'completed' AND pr.cost_per_unit_paisa > 0
+      ORDER BY pr.run_date DESC, pr.id DESC LIMIT 1
+    `);
+
     // 5. Total outstanding
     const invTotalRes = await pool.query("SELECT COALESCE(SUM(total_paisa), 0) AS total FROM invoices WHERE status = 'active'");
-    const payTotalRes = await pool.query("SELECT COALESCE(SUM(amount_paisa), 0) AS total FROM payments");
+    const payTotalRes = await pool.query("SELECT COALESCE(SUM(amount_paisa), 0) AS total FROM payments WHERE is_reversed = FALSE");
     const totalOutstanding = parseInt(invTotalRes.rows[0].total) - parseInt(payTotalRes.rows[0].total);
 
     // 6. Recent submitted orders
@@ -68,6 +88,8 @@ router.get('/owner', authorize('owner', 'admin'), async (req, res) => {
       },
       lowStockAlerts: lowStockItems,
       varianceAlerts: varianceRunsRes.rows,
+      materialVarianceAlerts: materialVarianceRes.rows,
+      latestRunCost: latestRunCostRes.rows[0] || null,
       recentOrders: recentOrdersRes.rows,
       stockSummary: stockSummary.slice(0, 8)
     });

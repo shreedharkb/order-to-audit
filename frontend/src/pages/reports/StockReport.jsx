@@ -76,8 +76,8 @@ export default function StockReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Stock Valuation & Audit Report</h1>
-        <p className="text-sm text-gray-500">Current balances and source-linked ledger movements across all inventory categories</p>
+        <h1 className="page-title">Stock Valuation & Audit Report</h1>
+        <p className="page-subtitle">Current balances and source-linked ledger movements across all inventory categories</p>
       </div>
 
       {loading ? <LoadingSpinner message="Compiling inventory balances..." /> : (

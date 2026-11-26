@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
 import toast from 'react-hot-toast';
-import { Users, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function CustomerManagement() {
   const [customers, setCustomers] = useState([]);
@@ -80,16 +82,12 @@ export default function CustomerManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Customer Directory</h1>
-          <p className="text-sm text-gray-500">Retailers and distributors with place of supply and GST compliance</p>
+          <h1 className="page-title">Customer Directory</h1>
+          <p className="page-subtitle">Retailers and distributors with place of supply and GST compliance</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Customer</span>
-        </button>
+        <Button onClick={() => setShowModal(true)}>
+          <Plus className="h-4 w-4" /> Add customer
+        </Button>
       </div>
 
       <DataTable
@@ -98,90 +96,82 @@ export default function CustomerManagement() {
         searchPlaceholder="Search customer, city, state, or GSTIN..."
       />
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="font-bold text-gray-900 text-lg">Add New Customer</h3>
-            <form onSubmit={handleCreateCustomer} className="space-y-3">
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogDescription>Register a retailer or distributor with place of supply and GST compliance.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateCustomer} className="space-y-3">
+            <div>
+              <label className="label">Business Name</label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="input-field"
+                placeholder="e.g. Sri Krishna Sweets"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Business Name</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full p-2.5 text-sm border rounded-xl"
-                  placeholder="e.g. Sri Krishna Sweets"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Customer Type</label>
-                  <select
-                    value={type}
-                    onChange={e => setType(e.target.value)}
-                    className="w-full p-2.5 text-sm border rounded-xl"
-                  >
-                    <option value="retailer">Retailer</option>
-                    <option value="distributor">Distributor</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">State</label>
-                  <select
-                    value={state}
-                    onChange={e => handleStateChange(e.target.value)}
-                    className="w-full p-2.5 text-sm border rounded-xl"
-                  >
-                    <option value="Tamil Nadu">Tamil Nadu (33)</option>
-                    <option value="Karnataka">Karnataka (29)</option>
-                    <option value="Kerala">Kerala (32)</option>
-                    <option value="Andhra Pradesh">Andhra Pradesh (37)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">GSTIN</label>
-                <input
-                  type="text"
-                  value={gstin}
-                  onChange={e => setGstin(e.target.value)}
-                  className="w-full p-2.5 text-sm font-mono border rounded-xl uppercase"
-                  placeholder="e.g. 33AABCS1234A1Z1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">City</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  className="w-full p-2.5 text-sm border rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl"
+                <label className="label">Customer Type</label>
+                <select
+                  value={type}
+                  onChange={e => setType(e.target.value)}
+                  className="input-field"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 text-sm font-bold text-white bg-orange-600 rounded-xl"
-                >
-                  Save Customer
-                </button>
+                  <option value="retailer">Retailer</option>
+                  <option value="distributor">Distributor</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <div>
+                <label className="label">State</label>
+                <select
+                  value={state}
+                  onChange={e => handleStateChange(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="Tamil Nadu">Tamil Nadu (33)</option>
+                  <option value="Karnataka">Karnataka (29)</option>
+                  <option value="Kerala">Kerala (32)</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh (37)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="label">GSTIN</label>
+              <input
+                type="text"
+                value={gstin}
+                onChange={e => setGstin(e.target.value)}
+                className="input-field font-mono uppercase"
+                placeholder="e.g. 33AABCS1234A1Z1"
+              />
+            </div>
+
+            <div>
+              <label className="label">City</label>
+              <input
+                type="text"
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                className="input-field"
+              />
+            </div>
+
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">Cancel</Button>
+              </DialogClose>
+              <Button type="submit">Save Customer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

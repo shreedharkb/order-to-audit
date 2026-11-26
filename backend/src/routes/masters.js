@@ -30,17 +30,23 @@ router.get('/items', async (req, res) => {
 });
 
 router.post('/items', authorize('admin'), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { name, type, unit, hsn_code, gst_rate_percent, selling_price_paisa, reorder_level, description } = req.body;
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO items (name, type, unit, hsn_code, gst_rate_percent, selling_price_paisa, reorder_level, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [name, type, unit, hsn_code, gst_rate_percent || 0, selling_price_paisa || 0, reorder_level || 0, description]
     );
-    await logAudit(pool, 'items', result.rows[0].id, 'create', null, result.rows[0], req.user.id);
+    await logAudit(client, 'items', result.rows[0].id, 'create', null, result.rows[0], req.user.id);
+    await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -58,17 +64,23 @@ router.get('/customers', async (req, res) => {
 });
 
 router.post('/customers', authorize('admin', 'salesman'), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { name, type, gstin, address, city, state, state_code, pincode, phone, email, credit_limit_paisa } = req.body;
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO customers (name, type, gstin, address, city, state, state_code, pincode, phone, email, credit_limit_paisa, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [name, type, gstin, address, city, state, state_code, pincode, phone, email, credit_limit_paisa || 0, req.user.id]
     );
-    await logAudit(pool, 'customers', result.rows[0].id, 'create', null, result.rows[0], req.user.id);
+    await logAudit(client, 'customers', result.rows[0].id, 'create', null, result.rows[0], req.user.id);
+    await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -86,16 +98,23 @@ router.get('/suppliers', async (req, res) => {
 });
 
 router.post('/suppliers', authorize('admin', 'production'), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { name, gstin, address, city, state, state_code, phone, email } = req.body;
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO suppliers (name, gstin, address, city, state, state_code, phone, email)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [name, gstin, address, city, state, state_code, phone, email]
     );
+    await logAudit(client, 'suppliers', result.rows[0].id, 'create', null, result.rows[0], req.user.id);
+    await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -181,6 +200,7 @@ router.post('/bom', authorize('admin', 'production'), async (req, res) => {
       }
     }
 
+    await logAudit(client, 'bom', newBom.id, 'create', null, newBom, req.user.id);
     await client.query('COMMIT');
     res.status(201).json(newBom);
   } catch (err) {

@@ -47,8 +47,8 @@ export default function PurchaseReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Purchase Register</h1>
-        <p className="text-sm text-gray-500">Raw material and packaging receipts with supplier, quantity, rate, and value</p>
+        <h1 className="page-title">Purchase Register</h1>
+        <p className="page-subtitle">Raw material and packaging receipts with supplier, quantity, rate, and value</p>
       </div>
       <DateRangeFilter
         loading={loading}

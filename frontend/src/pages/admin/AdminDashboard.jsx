@@ -1,18 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../../api/client';
-import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '../../utils/format';
+import { formatCurrency, formatDate, getStatusLabel, getStatusVariant } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import StockBadge from '../../components/StockBadge';
-import {
-  ClipboardCheck,
-  AlertTriangle,
-  Receipt,
-  Wallet,
-  ArrowRight,
-  ShieldAlert,
-  PackageCheck
-} from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Card } from '../../components/ui/card';
+
+const metrics = [
+  {
+    key: 'pendingApprovalsCount',
+    label: 'Pending verification',
+    format: value => value,
+    surface: 'border-amber-200 border-t-amber-400 bg-amber-50/70',
+    accent: 'text-amber-950'
+  },
+  {
+    key: 'todayOrdersTotalPaisa',
+    label: "Today's booked orders",
+    format: value => formatCurrency(value),
+    surface: 'border-blue-200 border-t-blue-400 bg-blue-50/70',
+    accent: 'text-blue-950'
+  },
+  {
+    key: 'lowStockCount',
+    label: 'Items low or out of stock',
+    format: value => value,
+    surface: 'border-rose-200 border-t-rose-400 bg-rose-50/70',
+    accent: 'text-rose-950'
+  },
+  {
+    key: 'totalOutstandingPaisa',
+    label: 'Total receivables',
+    format: value => formatCurrency(value),
+    surface: 'border-emerald-200 border-t-emerald-400 bg-emerald-50/70',
+    accent: 'text-emerald-950'
+  }
+];
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
@@ -25,95 +49,60 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner message="Loading Factory Admin Console..." />;
+  if (loading) return <LoadingSpinner message="Loading admin dashboard..." />;
 
-  const { metrics, lowStockAlerts, varianceAlerts, recentOrders, stockSummary } = data || {};
+  const { recentOrders, stockSummary } = data || {};
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Factory Admin Console</h1>
-        <p className="text-sm text-gray-500">Order verification, GST billing, dispatch, and inventory oversight</p>
+        <p className="eyebrow">Factory administration</p>
+        <h1 className="mt-2 page-title">Factory Admin Console</h1>
+        <p className="page-subtitle">Order verification, GST billing, dispatch, and inventory oversight.</p>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm">
-          <div className="flex items-center justify-between text-orange-600 mb-2">
-            <ClipboardCheck className="w-6 h-6" />
-            <span className="text-xs font-bold uppercase tracking-wider bg-orange-100 px-2 py-0.5 rounded-full">Orders</span>
-          </div>
-          <h3 className="text-2xl font-black text-gray-900">{metrics?.pendingApprovalsCount || 0}</h3>
-          <p className="text-xs text-gray-500 font-medium">Pending verification</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm">
-          <div className="flex items-center justify-between text-blue-600 mb-2">
-            <Receipt className="w-6 h-6" />
-            <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 px-2 py-0.5 rounded-full">Sales</span>
-          </div>
-          <h3 className="text-2xl font-black text-gray-900">{formatCurrency(metrics?.todayOrdersTotalPaisa || 0)}</h3>
-          <p className="text-xs text-gray-500 font-medium">Today's booked orders</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm">
-          <div className="flex items-center justify-between text-red-600 mb-2">
-            <AlertTriangle className="w-6 h-6" />
-            <span className="text-xs font-bold uppercase tracking-wider bg-red-100 px-2 py-0.5 rounded-full">Alerts</span>
-          </div>
-          <h3 className="text-2xl font-black text-gray-900">{metrics?.lowStockCount || 0}</h3>
-          <p className="text-xs text-red-600 font-medium">Items low / out of stock</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm">
-          <div className="flex items-center justify-between text-emerald-600 mb-2">
-            <Wallet className="w-6 h-6" />
-            <span className="text-xs font-bold uppercase tracking-wider bg-emerald-100 px-2 py-0.5 rounded-full">Dues</span>
-          </div>
-          <h3 className="text-2xl font-black text-gray-900">{formatCurrency(metrics?.totalOutstandingPaisa || 0)}</h3>
-          <p className="text-xs text-emerald-700 font-medium">Total receivables</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {metrics.map(metric => (
+          <Card key={metric.key} className={`metric-card ${metric.surface}`}>
+            <p className="metric-label">{metric.label}</p>
+            <p className={`metric-value ${metric.accent}`}>
+              {metric.format(data?.metrics?.[metric.key] || 0)}
+            </p>
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Orders Waiting For Admin Approval */}
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <PackageCheck className="w-5 h-5 text-orange-600" />
-              <span>Incoming Sales Orders</span>
-            </h2>
-            <Link to="/admin/orders" className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-              <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-4">
+            <div>
+              <h2 className="section-title">Incoming sales orders</h2>
+              <p className="mt-1 text-xs text-ink-500">Latest orders across the verification queue</p>
+            </div>
+            <Link to="/admin/orders" className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 hover:text-primary-800">
+              View all
             </Link>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-200">
             {!recentOrders?.length ? (
-              <div className="p-8 text-center text-gray-400 font-medium text-sm">No incoming orders</div>
+              <div className="px-5 py-10 text-center text-sm text-ink-500">No incoming orders.</div>
             ) : (
               recentOrders.map(order => (
-                <div key={order.id} className="p-4 hover:bg-gray-50 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-gray-900 text-sm">{order.order_number}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(order.status)}`}>
-                        {getStatusLabel(order.status)}
-                      </span>
+                <div key={order.id} className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-slate-50/80">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold text-ink-950">{order.order_number}</span>
+                      <Badge variant={getStatusVariant(order.status)}>{getStatusLabel(order.status)}</Badge>
                     </div>
-                    <p className="text-xs text-gray-600 mt-0.5">{order.customer_name}</p>
-                    <p className="text-[10px] text-gray-400">{formatDate(order.order_date)}</p>
+                    <p className="mt-1 truncate text-sm text-ink-600">{order.customer_name}</p>
+                    <p className="mt-0.5 text-xs text-ink-400">{formatDate(order.order_date)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-gray-900">{formatCurrency(order.total_paisa)}</p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold tabular-nums text-ink-950">{formatCurrency(order.total_paisa)}</p>
                     {order.status === 'submitted' && (
-                      <Link
-                        to="/admin/orders"
-                        className="inline-block mt-1 text-xs font-bold text-orange-600 hover:underline"
-                      >
-                        Verify & Approve →
+                      <Link to="/admin/orders" className="mt-1 inline-block text-xs font-medium text-primary-700 hover:underline">
+                        Review order
                       </Link>
                     )}
                   </div>
@@ -121,37 +110,35 @@ export default function AdminDashboard() {
               ))
             )}
           </div>
-        </div>
+        </Card>
 
-        {/* Live Inventory Snapshot */}
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-amber-600" />
-              <span>Inventory Balances</span>
-            </h2>
-            <Link to="/production/inventory" className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-              <span>Stock Ledger</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-4">
+            <div>
+              <h2 className="section-title">Inventory balances</h2>
+              <p className="mt-1 text-xs text-ink-500">Current stock position across key materials</p>
+            </div>
+            <Link to="/production/inventory" className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 hover:text-primary-800">
+              Stock ledger
             </Link>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-200">
             {!stockSummary?.length ? (
-              <div className="p-8 text-center text-gray-400 font-medium text-sm">No stock records</div>
+              <div className="px-5 py-10 text-center text-sm text-ink-500">No stock records.</div>
             ) : (
               stockSummary.map(item => (
-                <div key={item.id} className="p-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-sm text-gray-900">{item.name}</h3>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">{item.type.replace('_', ' ')}</p>
+                <div key={item.id} className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-slate-50/80">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-ink-950">{item.name}</h3>
+                    <p className="mt-0.5 text-xs capitalize text-ink-400">{item.type.replaceAll('_', ' ')}</p>
                   </div>
                   <StockBadge balance={item.current_balance} reorderLevel={item.reorder_level} unit={item.unit} />
                 </div>
               ))
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
-import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '../../utils/format';
+import { formatCurrency, formatDate, getStatusLabel } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { CheckCircle2, XCircle, AlertTriangle, FileText, Package, Pencil, Save } from 'lucide-react';
+import { Pencil, Save } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState([]);
@@ -30,6 +33,7 @@ export default function OrderManagement() {
 
   const handleStockCheck = async (order) => {
     setStockModalOrder(order);
+    setStockCheckData(null);
     try {
       const res = await client.get(`/orders/stock-check/${order.id}`);
       setStockCheckData(res.data);
@@ -43,12 +47,12 @@ export default function OrderManagement() {
     try {
       const res = await client.put(`/orders/${orderId}/approve`);
       if (res.data.hasStockShortage) {
-        toast((t) => (
+        toast((
           <div>
             <p className="font-bold text-amber-900">Order approved with stock warning!</p>
             <p className="text-xs text-amber-800">Finished goods shortage detected. Production needed.</p>
           </div>
-        ), { icon: '⚠️', duration: 5000 });
+        ), { duration: 5000 });
       } else {
         toast.success('Order approved successfully!');
       }
@@ -133,9 +137,7 @@ export default function OrderManagement() {
       key: 'status',
       label: 'Status',
       render: (val) => (
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(val)}`}>
-          {getStatusLabel(val)}
-        </span>
+        <Badge variant="outline">{getStatusLabel(val)}</Badge>
       )
     },
     {
@@ -176,10 +178,9 @@ export default function OrderManagement() {
           {row.status === 'approved' && (
             <button
               onClick={() => handleCreateInvoice(row.id)}
-              className="px-3 py-1 text-xs font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 shadow-sm inline-flex items-center gap-1"
+              className="px-3 py-1 text-xs font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 shadow-sm"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Raise GST Invoice</span>
+              Raise GST invoice
             </button>
           )}
         </div>
@@ -191,8 +192,8 @@ export default function OrderManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Sales Orders Desk</h1>
-          <p className="text-sm text-gray-500">Verify salesman orders against inventory and convert to GST tax invoices</p>
+          <h1 className="page-title">Sales orders</h1>
+          <p className="page-subtitle">Verify orders against inventory and convert them to GST invoices.</p>
         </div>
       </div>
 
@@ -206,138 +207,104 @@ export default function OrderManagement() {
         />
       )}
 
-      {editingOrder && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Verify Order</h3>
-                <p className="text-xs text-gray-500">{editingOrder.order_number} · {editingOrder.customer_name}</p>
-              </div>
-              <button onClick={() => setEditingOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
-            </div>
+      <Dialog open={Boolean(editingOrder)} onOpenChange={open => { if (!open) setEditingOrder(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Verify order</DialogTitle>
+            <DialogDescription>{editingOrder?.order_number} · {editingOrder?.customer_name}</DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-3">
-              {editLines.map((line, index) => (
-                <div key={line.itemId} className="grid grid-cols-[1fr_100px_130px] gap-3 items-center bg-gray-50 p-3 rounded-xl">
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">{line.name}</p>
-                    <p className="text-xs text-gray-500">Quantity in {line.unit}</p>
-                  </div>
+          <div className="mt-5 space-y-3">
+            {editLines.map((line, index) => (
+              <div key={line.itemId} className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_100px_130px] sm:items-center">
+                <div>
+                  <p className="text-sm font-medium text-ink-950">{line.name}</p>
+                  <p className="text-xs text-ink-500">Quantity in {line.unit}</p>
+                </div>
+                <input
+                  type="number"
+                  min="0.0001"
+                  step="0.0001"
+                  value={line.qty}
+                  onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, qty: event.target.value } : item))}
+                  className="input-field"
+                  aria-label={`Quantity for ${line.name}`}
+                />
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-sm text-ink-500">₹</span>
                   <input
                     type="number"
-                    min="0.0001"
-                    step="0.0001"
-                    value={line.qty}
-                    onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, qty: event.target.value } : item))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    aria-label={`Quantity for ${line.name}`}
+                    min="0"
+                    step="0.01"
+                    value={line.price}
+                    onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, price: event.target.value } : item))}
+                    className="input-field pl-7"
+                    aria-label={`Price for ${line.name}`}
                   />
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 text-sm">₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={line.price}
-                      onChange={event => setEditLines(lines => lines.map((item, i) => i === index ? { ...item, price: event.target.value } : item))}
-                      className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      aria-label={`Price for ${line.name}`}
-                    />
-                  </div>
                 </div>
-              ))}
-            </div>
-
-            <textarea
-              value={editNotes}
-              onChange={event => setEditNotes(event.target.value)}
-              placeholder="Order notes"
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t">
-              <button onClick={() => setEditingOrder(null)} className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-xl">
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveOrder}
-                disabled={actionLoading}
-                className="px-5 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md inline-flex items-center gap-2 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" /> Save Changes
-              </button>
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+
+          <textarea
+            value={editNotes}
+            onChange={event => setEditNotes(event.target.value)}
+            placeholder="Order notes"
+            rows={2}
+            className="input-field mt-4"
+          />
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveOrder} disabled={actionLoading}>
+              <Save className="h-4 w-4" /> Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stock Verification Modal */}
-      {stockModalOrder && stockCheckData && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Inventory Availability Check</h3>
-                <p className="text-xs text-gray-500">Order: {stockModalOrder.order_number} ({stockModalOrder.customer_name})</p>
-              </div>
-              <button onClick={() => setStockModalOrder(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
-            </div>
+      <Dialog open={Boolean(stockModalOrder && stockCheckData)} onOpenChange={open => { if (!open) setStockModalOrder(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Inventory availability</DialogTitle>
+            <DialogDescription>{stockModalOrder?.order_number} · {stockModalOrder?.customer_name}</DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-3">
-              {stockCheckData.items?.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`p-4 rounded-xl border flex items-center justify-between ${
-                    item.isSufficient ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                  }`}
-                >
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">{item.itemName}</h4>
-                    <p className="text-xs text-gray-600">
-                      Requested: <strong className="text-gray-900">{item.requested}</strong> {item.unit}s | Available: <strong className="text-gray-900">{item.available}</strong> {item.unit}s
-                    </p>
-                  </div>
-                  <div>
-                    {item.isSufficient ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Ready
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Shortage: {item.shortage} {item.unit}s
-                      </span>
-                    )}
-                  </div>
+          <div className="mt-5 space-y-3">
+            {stockCheckData?.items?.map((item, index) => (
+              <div key={index} className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${item.isSufficient ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                <div>
+                  <h4 className="text-sm font-medium text-ink-950">{item.itemName}</h4>
+                  <p className="mt-1 text-xs text-ink-600">
+                    Requested {item.requested} {item.unit}; available {item.available} {item.unit}
+                  </p>
                 </div>
-              ))}
-            </div>
-
-            {!stockCheckData.canFulfill && (
-              <div className="p-3 bg-amber-50 rounded-xl text-xs text-amber-900 border border-amber-200">
-                <strong>Benchmark Note:</strong> For Distributor B (120 packets), stock on floor is 88 packets. System flags the 32 packet shortage. You can still approve to trigger production schedule!
+                <Badge variant={item.isSufficient ? 'success' : 'danger'}>
+                  {item.isSufficient ? 'Ready' : `Shortage: ${item.shortage} ${item.unit}`}
+                </Badge>
               </div>
-            )}
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t">
-              <button
-                onClick={() => setStockModalOrder(null)}
-                className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-xl"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => handleApprove(stockModalOrder.id)}
-                disabled={actionLoading}
-                className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
-              >
-                Approve Order Anyway
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+
+          {stockCheckData && !stockCheckData.canFulfill && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+              Stock is insufficient for this order. Approving it will flag the shortage for production planning.
+            </div>
+          )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Close</Button>
+            </DialogClose>
+            <Button onClick={() => handleApprove(stockModalOrder.id)} disabled={actionLoading}>
+              Approve order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

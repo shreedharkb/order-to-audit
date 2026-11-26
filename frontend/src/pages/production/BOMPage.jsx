@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { BookOpen, Layers } from 'lucide-react';
 
 export default function BOMPage() {
   const [boms, setBoms] = useState([]);
@@ -20,22 +19,22 @@ export default function BOMPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Recipe Master (Bill of Materials)</h1>
-        <p className="text-sm text-gray-500">Standard material and packaging requirements per production batch with expected yields</p>
+        <h1 className="page-title">Recipe Master (Bill of Materials)</h1>
+        <p className="page-subtitle">Standard material and packaging requirements per production batch with expected yields</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {boms.map(bom => (
-          <div key={bom.id} className="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+          <div key={bom.id} className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-2">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-orange-600">Standard Production Recipe</span>
-                <h2 className="text-xl font-black text-gray-900">{bom.batch_name} ({bom.finished_item_name})</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{bom.batch_name} ({bom.finished_item_name})</h2>
                 <p className="text-xs text-gray-500">{bom.notes}</p>
               </div>
               <div className="px-4 py-2 bg-orange-50 rounded-xl border border-orange-200 text-left sm:text-right">
                 <span className="text-xs text-orange-800 font-bold block">Expected Yield per Batch</span>
-                <span className="text-lg font-black text-orange-950">{bom.expected_yield} {bom.yield_unit}s</span>
+                <span className="text-lg font-semibold text-orange-950">{bom.expected_yield} {bom.yield_unit}s</span>
               </div>
             </div>
 

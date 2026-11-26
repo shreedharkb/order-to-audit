@@ -52,18 +52,33 @@ describe('Benchmark Maths & Calculations Verification', () => {
       expect(gstService.isInterState('33', '29')).toBe(true);  // TN to KA
     });
 
-    test('Invoice numbering reuses the caller transaction client', async () => {
+    test('Invoice numbering uses a locked counter for the current financial year', async () => {
       const client = {
         query: jest.fn(async (sql) => {
           if (sql.includes("key = 'invoice_prefix'")) return { rows: [{ value: 'INV' }] };
+          if (sql.includes('INSERT INTO settings')) return { rows: [] };
           if (sql.includes('FOR UPDATE')) return { rows: [{ value: '0' }] };
           return { rows: [] };
         })
       };
 
       await expect(gstService.generateInvoiceNumber(client)).resolves.toBe(`INV/${gstService.getFinancialYear()}/0001`);
-      expect(client.query).toHaveBeenCalledTimes(3);
+      expect(client.query).toHaveBeenCalledTimes(4);
+      expect(client.query.mock.calls[1][1][0]).toBe(`invoice_counter_${gstService.getFinancialYear()}`);
       expect(client.query.mock.calls.some(([sql]) => sql === 'BEGIN' || sql === 'COMMIT')).toBe(false);
+    });
+
+    test('Credit note numbering uses a separate financial-year counter', async () => {
+      const client = {
+        query: jest.fn(async (sql) => {
+          if (sql.includes('INSERT INTO settings')) return { rows: [] };
+          if (sql.includes('FOR UPDATE')) return { rows: [{ value: '2' }] };
+          return { rows: [] };
+        })
+      };
+
+      await expect(gstService.generateCreditNoteNumber(client)).resolves.toBe(`CN/${gstService.getFinancialYear()}/0003`);
+      expect(client.query.mock.calls[0][1][0]).toBe(`credit_note_counter_${gstService.getFinancialYear()}`);
     });
   });
 

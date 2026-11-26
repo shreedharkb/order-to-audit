@@ -1,284 +1,307 @@
-# FactoryLoop — Food Manufacturing ERP
+# FactoryLoop — Order-to-Audit Prototype
 
-> **A production-ready Enterprise Resource Planning (ERP) platform bridging the Sales Loop and Recipe-Based Production Loop for Sri Lakshmi Foods.**  
-> Built for the **Centre for Digital Infrastructure, National Institute of Technology, Tiruchirappalli** Internship Shortlisting Task.  
-> **Author:** Shreedhar K B (`23bcs126@iiitdwd.ac.in`) · IIIT Dharwad  
-> **🌐 Live Deployment:** [https://frontend-fawn-ten-48.vercel.app](https://frontend-fawn-ten-48.vercel.app)  
-> **🔗 Live API:** [https://backend-zeta-two-82.vercel.app/api](https://backend-zeta-two-82.vercel.app/api)  
-> **📁 Repository:** [https://github.com/shreedharkb/order-to-audit](https://github.com/shreedharkb/order-to-audit)
+FactoryLoop is an individual prototype for the NIT Tiruchirappalli internship problem statement. It connects field orders, admin verification, GST billing, dispatch, BOM-based production, stock, costing, collections, and auditor reports in one PostgreSQL-backed system.
 
----
+## Submission links
 
-## 1. Executive Summary & Problem Overview
+| Item | Link or status |
+| --- | --- |
+| Live web app | https://frontend-fawn-ten-48.vercel.app |
+| Live API health | https://backend-zeta-two-82.vercel.app/api/health |
+| Public repository | https://github.com/shreedharkb/order-to-audit |
+| Author | Shreedhar K B |
+| Design note | [DESIGN.md](DESIGN.md) |
+| Demo video | Pending: record the Section 5 walkthrough in order, including mobile salesman and admin views, maximum 8 minutes |
 
-Small packaged-food manufacturers (producing traditional South Indian snacks like murukku, mixture, chips, and sweets) typically suffer from fragmented operations:
-- Field salesmen phone or WhatsApp orders, requiring error-prone manual re-entry at the billing desk.
-- Invoicing runs in standalone tools, stock is tracked in notebooks, and frying/packing runs are logged on loose paper.
-- Flour, oil, and packaging scrap go unnoticed because planned vs. actual consumption is never reconciled.
-- Month-ends trigger chaotic manual assembly of GSTR-1, outward supplies, physical stock ledgers, and debtor ageing.
-
-**The Solution:** An end-to-end web system where every physical event (purchase, recipe batch issue, output yield, order approval, invoice dispatch, payment remittance) is captured **once at source** and flows automatically into an immutable movement ledger, real-time GST invoicing, recipe variance detection, unit costing, and audit registers.
-
----
-
-## 2. System Architecture
-
-The core of the system links two business loops meeting at the **Finished Goods Stock Ledger**, which together feed the monthly reports:
-
-```mermaid
-flowchart TD
-    subgraph SALES["🔄 1. Sales Loop"]
-        direction LR
-        SO["Salesman Order\n(Mobile App)"] --> AV["Admin Verification\n(Stock Check)"]
-        AV --> GI["GST Tax Invoice\n(Intra/Inter-State)"]
-        GI --> DISP["Goods Dispatch"]
-        DISP --> REC["Collections &\nReceivables"]
-    end
-
-    subgraph PROD["🍳 2. Production Loop (Recipe BOM)"]
-        direction LR
-        PO["Raw Purchase\n(Vendor Inward)"] --> RMS[("Raw & Packaging\nStock Ledger")]
-        RMS --> BOM["Issue per BOM\n(Planned Input)"]
-        BOM --> RUN["Production Run\n(Actual & Scrap)"]
-        RUN --> VAR["Yield Variance (>3%)\n& Unit Costing"]
-    end
-
-    subgraph JUNCTION["📦 Finished Goods Stock Ledger"]
-        FGS[("Finished Goods Stock\n(e.g., Murukku 200g)")]
-    end
-
-    subgraph AUDIT["📑 3. Monthly Auditor & Owner Reports"]
-        REP["Monthly Reports & Excel Exports\n• Sales & GSTR-1/3B Summary • Running Stock Ledger\n• Recipe Variance Flags (>3%) • Cost per Packet (₹31.14) • Customer Ageing (0-90+ Days)"]
-    end
-
-    DISP ==>|"Stock Decreases (-)"| FGS
-    VAR ==>|"Stock Increases (+)"| FGS
-
-    FGS --> AUDIT
-    REC --> AUDIT
-    VAR --> AUDIT
-```
-
----
-
-## 3. Benchmark Verification & Audit Proof (Section 5)
-
-The application has been verified against all Section 5 benchmark numbers. All 16 automated test assertions pass:
-
-| Verification Metric | Problem Statement Benchmark | System Engine Result | Status | Technical Explanation |
-| :--- | :--- | :--- | :---: | :--- |
-| **Flour Closing Balance** | **120.0 kg** | **120.0 kg** | ✅ **MATCH** | $100\text{ kg (open)} + 60\text{ kg (purchased)} - 40\text{ kg (issued)} = 120.0\text{ kg}$ |
-| **Cooking Oil Closing** | **19.5 L** | **19.5 L** | ✅ **MATCH** | $30.0\text{ L (open)} - 10.5\text{ L (actual issue)} = 19.5\text{ L}$ |
-| **Pouches Closing** | **306 pcs** | **306 pcs** | ✅ **MATCH** | $500\text{ open} - (188\text{ good packets} + 6\text{ damaged}) = 306\text{ pouches}$ |
-| **Cartons Closing** | **21 pcs** | **21 pcs** | ✅ **MATCH** | $30\text{ cartons open} - 9\text{ cartons used} = 21\text{ cartons}$ |
-| **FG Stock after Run** | **238 packets** | **238 packets** | ✅ **MATCH** | $50\text{ opening} + 188\text{ batch yield} = 238\text{ packets}$ |
-| **FG Stock after Dispatch** | **88 packets** | **88 packets** | ✅ **MATCH** | $238\text{ packets} - 150\text{ dispatched to Retailer A} = 88\text{ packets}$ |
-| **Yield Variance** | **-6.0%, Flagged** | **-6.0%, Flagged** | ✅ **MATCH** | $(188 - 200)/200 \times 100 = -6.0\%$; exceeds $3\%$ tolerance limit |
-| **Oil Consumption Variance** | **+5.0%, Flagged** | **+5.0%, Flagged** | ✅ **MATCH** | $(10.5 - 10.0)/10.0 \times 100 = +5.0\%$; exceeds $3\%$ tolerance limit |
-| **Retailer A Invoice** | **₹7,875.00** | **₹7,875.00** | ✅ **MATCH** | 150 pkts @ ₹50 = ₹7,500.00 Taxable + ₹187.50 CGST + ₹187.50 SGST |
-| **Retailer A Outstanding** | **₹3,875.00** | **₹3,875.00** | ✅ **MATCH** | ₹7,875.00 invoiced - ₹4,000.00 payment collected |
-| **Distributor B Order Check** | **Shortage: 32 pkts** | **Shortage: 32 pkts** | ✅ **MATCH** | 88 available vs 120 ordered; IGST 5% calculated (Karnataka POS 29) |
-| **Cost per Packet** | Stated & Justified | **₹31.14 / packet** | ✅ **MATCH** | ₹4,055 (material) + ₹1,200 (labour) + ₹600 (gas) = ₹5,855 / 188 pkts |
-
-### Cost per Packet Mathematical Breakdown:
-- **Weighted-average Flour:** $(100\text{ kg} \times ₹42 + 60\text{ kg} \times ₹45)/160\text{ kg} = ₹43.125/\text{kg}$. For 40 kg issued = **₹1,725.00**
-- **Cooking Oil:** $10.5\text{ L} \times ₹140.00 = \mathbf{₹1,470.00}$
-- **Salt & Spice Mix:** $1.2\text{ kg} \times ₹200.00 = \mathbf{₹240.00}$
-- **200g Pouches:** $(188\text{ output} + 6\text{ damaged}) \times ₹2.50 = \mathbf{₹485.00}$
-- **Outer Cartons:** $9\text{ cartons used} \times ₹15.00 = \mathbf{₹135.00}$
-- **Subtotal Direct Materials:** **₹4,055.00**
-- **Direct Batch Labour:** **₹1,200.00**
-- **Power & Gas Utility:** **₹600.00**
-- **Total Production Cost:** ₹4,055 + ₹1,200 + ₹600 = **₹5,855.00**
-- **Actual Good Yield:** 188 packets
-- **Final Unit Cost:** $\frac{₹5,855.00}{188} = \mathbf{₹31.1436} \approx \mathbf{₹31.14}$
-- **Unit Margin:** $₹50.00 - ₹31.14 = \mathbf{₹18.86}$ (**37.7% Gross Margin**)
-
----
-
-## 4. Role-Based Access Control & Test Credentials
-
-The database is pre-seeded with all five operational roles. All accounts use password: **`password123`**
-
-| Role | Username | Password | Device | Key Workflows & Permissions |
-| :--- | :--- | :--- | :--- | :--- |
-| **Salesman (TN)** | `salesman_a` | `password123` | Mobile | Fast catalog order booking, customer order status, customer-wise sales summary |
-| **Salesman (KA)** | `salesman_b` | `password123` | Mobile | Inter-state field orders (Distributor B in Mysuru, Karnataka) |
-| **Factory Admin** | `admin` | `password123` | Desktop | Order approval/rejection, stock sufficiency check, GST tax invoicing, dispatch, payment entry |
-| **Production Supervisor** | `production` | `password123` | Tablet/PC | Bill of Materials (BOM), batch production runs, planned vs actual material issues, scrap recording |
-| **Accountant / Auditor** | `accountant` | `password123` | Desktop | Read-only auditor portal: GSTR-1 outward tax summary, running stock ledger, cost/margin analysis, Excel exports |
-| **Factory Owner** | `owner` | `password123` | Any | Executive command center: daily bookings, pending approvals, variance flags (>3%), outstanding balances |
-
----
-
-## 5. Technology Stack & Design Decisions
-
-### 5.1 Strict Movement-Based Stock Ledger (Zero Static Columns)
-Following strict accounting standards, no item table contains an editable `current_stock` column. Balances are derived dynamically from immutable ledger movements:
-$$\text{Stock Balance}_i = \sum \text{QtyIn}_i - \sum \text{QtyOut}_i$$
-This prevents silent inventory drift, stock tampering, and negative inventory states.
-
-### 5.2 64-bit Integer Paisa Arithmetic
-All monetary fields (`subtotal_paisa`, `cgst_paisa`, `amount_paisa`, `rate_paisa`) are stored as **integers in paisa** ($1\text{ Rupee} = 100\text{ Paisa}$). This completely eliminates binary floating-point round-off errors ($0.1 + 0.2 \neq 0.3$) across high-volume transactions.
-
-### 5.3 Statutory GST Place of Supply Engine
-The GST engine compares the company state code (`33` for Tamil Nadu) with the customer place of supply code:
-- **Intra-State Supply (Tamil Nadu $\rightarrow$ Tamil Nadu, Code 33):** Equal split between **CGST (2.5%)** and **SGST (2.5%)**.
-- **Inter-State Supply (Tamil Nadu $\rightarrow$ Karnataka, Code 29):** Full rate allocated to **IGST (5.0%)**.
-- Automatic sequential invoice numbering per financial year: `INV/2024-25/0001`.
-
----
-
-## 6. How to Run & Test
-
-### Option A: Docker Compose (Single Command — Recommended)
-
-Make sure Docker Desktop is running:
+## Quick start
 
 ```bash
-cd order-to-audit
-docker-compose up --build
+docker compose up --build
 ```
 
-- **Web Application:** Open [http://localhost](http://localhost) (or `http://localhost:80`)
-- **Backend API:** [http://localhost:3000/api](http://localhost:3000/api)
-- **PostgreSQL Database:** `localhost:5432` (database `order_to_audit`, user `postgres`, password `postgres`)
+- Web app: `http://localhost`
+- API: `http://localhost:3000/api`
+- PostgreSQL: `localhost:5432`
 
-The database automatically initializes the schema and seeds all benchmark data on first launch.
+The backend container creates the schema and loads the Section 5 seed data before starting. To reset the demo to a clean benchmark database:
 
----
+```bash
+docker compose down -v
+docker compose up --build
+```
 
-### Option B: Local Development (Without Docker)
+`down -v` deletes the local Docker database volume and all demo transactions.
 
-**Prerequisites:** Node.js (v18+) and PostgreSQL installed.
+## Test logins
 
-1. **Database:**
-   ```bash
-   createdb order_to_audit
-   ```
-2. **Backend:**
-   ```bash
-   cd backend
-   npm install
-   npm run init-db    # Runs schema migrations
-   npm run seed       # Seeds benchmark data with bcrypt hashes
-   npm run dev        # Starts backend on http://localhost:3000
-   ```
-3. **Frontend (separate terminal):**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev        # Starts Vite dev server on http://localhost:5173
-   ```
+All seeded accounts use password `password123`. These are dummy credentials for local and demo use only.
 
----
+| Role | Username | Main screen |
+| --- | --- | --- |
+| Salesman A | `salesman_a` | `/salesman/dashboard` |
+| Salesman B | `salesman_b` | `/salesman/dashboard` |
+| Factory Admin | `admin` | `/admin/dashboard` |
+| Production Supervisor | `production` | `/production/dashboard` |
+| Accountant / Auditor | `accountant` | `/reports` |
+| Owner | `owner` | `/owner/dashboard` |
 
-### Option C: Automated Test Suite
+Salesmen see only their own orders. The accountant has read-only report access. Admin and owner have the broadest operational access; production users manage BOMs, purchases, and production runs.
 
-Run the full Jest benchmark verification suite:
+## Stack and why
+
+React, Vite, React Router, Tailwind CSS, and shadcn-style Radix primitives let one responsive web app serve mobile sales staff and desktop factory users. Node.js/Express keeps the API and domain rules in one language, while PostgreSQL provides relational integrity, transactions, numeric quantities, ledger-based stock, and locked financial-year invoice counters.
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 18, Vite 5, React Router 6, Axios, TanStack Query |
+| UI | Tailwind CSS, Radix Dialog/Slot, shadcn-style components |
+| Backend | Node.js, Express, JWT, bcrypt |
+| Database | PostgreSQL 15, `BIGINT` paisa, `NUMERIC(15,4)` quantities |
+| Files | PDFKit GST invoices, ExcelJS report exports |
+| Tests | Jest |
+| Deployment | Docker Compose, Vercel |
+
+## System flow
+
+```mermaid
+flowchart LR
+    subgraph SALES["Sales loop"]
+        A["Salesman order"] --> B["Admin verification"]
+        B --> C["GST invoice"]
+        C --> D["Dispatch"]
+    end
+
+    subgraph PRODUCTION["Production loop"]
+        E["Purchase"] --> F["Raw / packaging stock"]
+        F --> G["BOM issue"]
+        G --> H["Production run"]
+    end
+
+    D -->|"finished goods out"| I[("Stock ledger")]
+    H -->|"finished goods in"| I
+    C --> J["Receivables and collections"]
+    H --> K["Variance and cost per packet"]
+    I --> L["Monthly reports"]
+    J --> L
+    K --> L
+```
+
+Every balance is derived from `stock_ledger`; each movement records `txn_ref_type` and `txn_ref_id` for its purchase, production run, invoice, or adjustment. Business writes use database transactions, and invoice or production changes are written to `audit_log`.
+
+## Features against Section 6
+
+### Must have — complete
+
+| Requirement | Implementation |
+| --- | --- |
+| Login with at least three roles | Five roles: salesman, admin, production, accountant, owner; backend RBAC and protected frontend routes |
+| Product, customer, raw-material and BOM masters | Master APIs and screens; seeded Murukku benchmark data |
+| Mobile-friendly order entry and admin approval | Responsive order form, customer/product selection, stock check, edit/approve/reject |
+| GST invoice as PDF | GSTIN, HSN, taxable value, CGST/SGST or IGST, place of supply, financial-year numbering |
+| Production run updates stock automatically | Raw/packaging issues and finished-goods output post to the ledger on run completion |
+| Planned vs actual consumption and yield | BOM multiplier, actual issues, 3% tolerance, flagged yield/material variance |
+| Stock summary and stock ledger | Live balances, weighted-average valuation, running ledger and source references |
+| Sales register and stock report export | Date-filtered reports exported as `.xlsx` |
+
+### Should have — complete
+
+| Requirement | Implementation |
+| --- | --- |
+| Purchases and supplier records | Supplier master, purchase entry, receipt ledger and purchase register |
+| Payments, outstanding and ageing | Invoice/customer validation, overpayment prevention, FIFO allocation, 0–30/31–60/61–90/90+ buckets |
+| Cost per packet with overheads | Weighted-average materials plus direct labour and utilities per run |
+| GST summary report | Tax-rate and intra/inter-state outward-supply summary |
+| Variance alerts beyond tolerance | Production detail and owner dashboard show yield and material alerts |
+| Owner dashboard | Today’s orders, pending approvals, stock, variance alerts, latest packet cost and receivables |
+
+### Stretch goals — partial or not implemented
+
+| Goal | Status |
+| --- | --- |
+| Offline order capture and sync | Not implemented |
+| Batch/expiry and FEFO | Batch/expiry columns exist; batch selection, expiry alerts and FEFO dispatch are not implemented |
+| Reorder levels and low-stock alerts | Balance/reorder comparison exists; benchmark items do not have seeded reorder thresholds |
+| Production planning from pending orders | Not implemented |
+| Salesman route/GPS visit log | Not implemented |
+| Tally-compatible export | Not implemented |
+| Mock e-Invoice/e-Way Bill | Not implemented |
+| Tamil interface | Not implemented |
+
+## Section 5 benchmark
+
+Use a clean seeded database. All company, customer, supplier, and transaction data is fictional.
+
+### Seeded master data
+
+BOM for **Murukku 200 g**, one batch = 200 expected packets:
+
+| Item | BOM quantity | Opening stock | Rate |
+| --- | ---: | ---: | ---: |
+| Rice Flour | 40 kg | 100 kg | ₹42 opening; ₹45 new purchase |
+| Cooking Oil | 10 L | 30 L | ₹140/L |
+| Salt and Spice Mix | 1.2 kg | 5 kg | ₹200/kg |
+| 200g Pouch | 200 pieces | 500 pieces | ₹2.50/piece |
+| Carton (20 packets) | 10 pieces | 30 pieces | ₹15/carton |
+| Murukku 200g | 200 packets expected | 50 packets | ₹50/packet before 5% GST |
+
+### Demonstration order
+
+1. As `production` or `admin`, record a purchase of **60 kg Rice Flour at ₹45/kg**.
+2. Start one **Murukku 200g Standard Batch**, multiplier `1`.
+3. Issue **40 kg flour**, **10.5 L oil**, and **1.2 kg spice mix**.
+4. Complete the run with **188 good packets**, **6 damaged pouches**, and **9 cartons**.
+5. As `salesman_a`, order **150 packets** for **Retailer A — Tamil Nadu**.
+6. As `admin`, approve, raise the GST invoice, download the PDF, and record dispatch.
+7. As `salesman_b`, order **120 packets** for **Distributor B — Karnataka**. Approval shows a **32-packet shortage**; IGST applies if an inter-state invoice is raised.
+8. Record **₹4,000** against Retailer A’s invoice.
+9. Add **₹1,200 labour** and **₹600 gas/power** to the run, then open the month’s reports and export the required Excel files.
+
+### Verified results
+
+| Check | Expected | Verified |
+| --- | --- | --- |
+| Flour closing balance | 120 kg | 120 kg |
+| Oil closing balance | 19.5 L | 19.5 L |
+| Spice closing balance | 3.8 kg | 3.8 kg |
+| Pouches closing balance | 306 | 306 |
+| Cartons closing balance | 21 | 21 |
+| Finished goods after run | 238 packets | 238 packets |
+| Finished goods after Retailer A dispatch | 88 packets | 88 packets |
+| Yield variance | 188 vs 200, −6%, flagged | −6%, flagged |
+| Oil consumption variance | +5%, flagged | +5%, flagged |
+| Retailer A invoice | ₹7,500 + ₹187.50 CGST + ₹187.50 SGST | ₹7,875 |
+| Retailer A outstanding | ₹3,875 | ₹3,875 |
+| Distributor B shortage | 32 packets | 32 packets |
+| Invoice number | Financial-year sequence | `INV/2026-27/0001` on a clean FY 2026–27 database |
+| GST invoice PDF | Valid PDF | Generated successfully |
+
+### Cost per packet
+
+Weighted-average costing is used. After the flour purchase, its moving-average rate rounds to **₹43.13/kg**.
+
+| Component | Calculation | Cost |
+| --- | --- | ---: |
+| Flour | 40 kg × ₹43.13 | ₹1,725.20 |
+| Oil | 10.5 L × ₹140 | ₹1,470.00 |
+| Spice | 1.2 kg × ₹200 | ₹240.00 |
+| Pouches | 194 × ₹2.50 | ₹485.00 |
+| Cartons | 9 × ₹15 | ₹135.00 |
+| Labour | Direct to this run | ₹1,200.00 |
+| Gas/power | Direct to this run | ₹600.00 |
+| **Total batch cost** | | **₹5,855.20** |
+
+`₹5,855.20 ÷ 188 good packets = ₹31.1447`, stored and displayed as **₹31.14 per packet**. At the ₹50 pre-tax selling price, the approximate pre-tax margin is **₹18.86 per packet (37.72%)**.
+
+The only valuation difference from an unrounded flour average is ₹0.20 in the batch total: the ledger stores whole paisa, so the flour rate rounds from ₹43.125 to ₹43.13. The final rounded packet cost remains ₹31.14.
+
+## Reports and exports
+
+| Report | Coverage |
+| --- | --- |
+| Sales register | Customer-wise and product-wise sales |
+| GST summary | Outward supplies by tax rate and intra/inter-state supply |
+| Purchase register | Supplier purchases and receipts |
+| Stock summary | Current raw, packaging, and finished-goods balances |
+| Stock ledger | Every movement with source document and running balance |
+| Production report | Planned vs actual consumption, yield, wastage, and flags |
+| Collections register | Payments by customer and invoice |
+| Outstanding report | Receivables by customer with FIFO ageing |
+| Cost report | Run cost, cost per packet, selling price, and margin |
+
+Report APIs accept `dateFrom` and `dateTo` where applicable. Excel exports are available at `/api/reports/export/:type` for `sales`, `gst`, `stock`, `stock-ledger`, `production`, `purchases`, `collections`, `outstanding`, and `cost`.
+
+## Assumptions
+
+- All business data is fictional and follows the supplied benchmark or invented dummy records.
+- Money is stored as integer paisa in PostgreSQL `BIGINT`; JavaScript uses safe integer arithmetic.
+- Quantities use `NUMERIC(15,4)`. kg/g and litre/ml convert automatically; carton-to-packet conversion is not guessed.
+- Weighted-average cost includes inward and outward ledger value. Issues and dispatches use the current rounded moving average.
+- Labour and utilities are directly allocated to the production run that records them.
+- Pouches consumed equal good packets plus damaged pouches. Carton consumption is entered explicitly in the benchmark.
+- Opening finished-goods stock has zero seeded cost, so blended inventory value differs from new-run cost. Cost reports use run cost.
+- Work in progress is not a separate stock account; a run’s status tracks material issue through completion.
+- Dispatch is all-or-nothing per invoice. Partial dispatch is not implemented.
+- GST for Murukku is 5%; Tamil Nadu is state code `33`; financial years run April–March.
+- Stock summary is current stock. The stock ledger supports date-range opening balances and running balances.
+- Invoices are cancelled, never deleted. Cancellation creates a credit-note number, reverses payments, and restores dispatched stock.
+
+## Known gaps
+
+- Offline order capture and sync are not implemented.
+- Invoice sharing supports PDF download; WhatsApp/email sharing is not implemented.
+- Partial dispatch and sales returns are not implemented.
+- General report export is XLSX only; PDF/CSV report export is not implemented.
+- Credit notes have a number, reason, status, and stock/payment reversal, but no separate credit-note PDF.
+- Batch and expiry fields are not enforced through picking or FEFO dispatch.
+- Reorder thresholds are configurable but not populated in the seed data.
+- Production planning, Tally export, mock e-Invoice/e-Way Bill, Tamil UI, and GPS visits are not implemented.
+- Audit records include user and time; request IP capture is not populated.
+- Frontend has a production build check but no automated frontend test or lint suite.
+
+## Verification
 
 ```bash
 cd backend
 npm test
+
+cd ../frontend
+npm run build
 ```
 
-**Expected output:**
-```text
-PASS tests/unitService.test.js
-PASS tests/stock.test.js
+Latest local verification:
 
-Test Suites: 2 passed, 2 total
-Tests:       16 passed, 16 total
-Snapshots:   0 total
-Time:        0.75 s
-Ran all test suites.
-```
+- Backend Jest: **2 suites, 17 tests passed**
+- Frontend Vite production build: **passed**
+- Section 5 live API/PostgreSQL benchmark: **passed**
+- All nine Excel report exports: **passed**
+- GST invoice PDF generation: **passed**
+- Browser smoke checks: **desktop/mobile login, invalid-login message, password visibility, owner dashboard, and 390px no-overflow checks passed**
 
----
+## Manual setup
 
-## 7. Cloud Deployment (Vercel)
+Prerequisites: Node.js 20+, PostgreSQL 15+, and npm.
 
-The repository is configured for cloud deployment on Vercel:
+1. Create the database:
 
-### 1. Frontend on Vercel
-- **Root Directory:** `frontend`
-- **Framework Preset:** Vite
-- **Build Command:** `npm run build`
-- **Output Directory:** `dist`
-- SPA routing rewrites are pre-configured in `frontend/vercel.json`.
+   ```bash
+   createdb order_to_audit
+   ```
 
-### 2. Backend on Vercel (Serverless Node.js)
-- **Root Directory:** `backend`
-- Pre-configured with `backend/vercel.json` (`@vercel/node` runtime) and `backend/api/index.js` serverless handler.
-- **Environment Variables Required in Vercel:**
-  - `DATABASE_URL`: Cloud PostgreSQL connection string (Neon, Supabase, Aiven, or Railway)
-  - `JWT_SECRET`: Random 32-character secret key
-  - `NODE_ENV`: `production`
+2. Configure and start the backend:
 
----
+   ```bash
+   cd backend
+   cp .env.example .env
+   npm install
+   npm run init-db
+   npm run seed
+   npm run dev
+   ```
 
-## 8. Repository Structure
+   Set a strong `JWT_SECRET` before any public deployment. The API runs at `http://localhost:3000/api`.
 
-```text
-order-to-audit/
-├── backend/
-│   ├── api/index.js              # Serverless entrypoint for Vercel
-│   ├── src/
-│   │   ├── config/db.js          # PostgreSQL pool with auto cloud-SSL detection
-│   │   ├── db/
-│   │   │   ├── schema.sql        # 20+ tables, movement ledger, audit log
-│   │   │   ├── seed.sql          # Benchmark opening balances & master data
-│   │   │   ├── initDb.js         # Idempotent migration runner
-│   │   │   └── runSeed.js        # Seed runner with dynamic bcrypt hashing
-│   │   ├── middleware/
-│   │   │   ├── auth.js           # JWT authentication
-│   │   │   ├── rbac.js           # Role-based access control
-│   │   │   └── auditLog.js       # Transaction audit trail logging
-│   │   ├── routes/
-│   │   │   ├── auth.js           # Login & session profile
-│   │   │   ├── dashboard.js      # Owner & Salesman dashboard endpoints
-│   │   │   ├── invoices.js       # GST billing, PDFKit generation & dispatch
-│   │   │   ├── masters.js        # Customer, Supplier, Item & BOM CRUD
-│   │   │   ├── orders.js         # Order taking, approval & stock checks
-│   │   │   ├── payments.js       # Remittance entry & customer dues
-│   │   │   ├── production.js     # Production runs, issues & variance engine
-│   │   │   ├── purchases.js      # Inward vendor receipt & stock addition
-│   │   │   └── reports.js        # GSTR summary, Excel export & costing
-│   │   ├── services/
-│   │   │   ├── costingService.js # Weighted-average production costing
-│   │   │   ├── gstService.js     # Intra/Inter-state POS tax calculator
-│   │   │   ├── pdfService.js     # GST tax invoice PDF generator
-│   │   │   ├── receivablesService.js # FIFO customer ageing analysis
-│   │   │   ├── stockService.js   # Movement-based inventory balances
-│   │   │   └── unitService.js    # Metric mass/volume/count conversions
-│   │   └── index.js              # Express app entrypoint
-│   ├── tests/
-│   │   ├── stock.test.js         # Benchmark verification test suite
-│   │   └── unitService.test.js   # Unit conversion test suite
-│   ├── Dockerfile                # Node 20 Alpine container definition
-│   └── vercel.json               # Backend Vercel serverless configuration
-├── frontend/
-│   ├── src/
-│   │   ├── api/client.js         # Axios HTTP client with auth interceptors
-│   │   ├── components/           # Layout, ProtectedRoute, DataTable, DateRangeFilter
-│   │   ├── context/AuthContext.jsx # RBAC authentication provider
-│   │   ├── pages/
-│   │   │   ├── admin/            # Orders, Invoices, Purchases, Payments, Customers
-│   │   │   ├── owner/            # Executive Command Center
-│   │   │   ├── production/       # Floor Dashboard, Runs, BOM, Inventory
-│   │   │   ├── reports/          # Sales, GST, Stock, Variance, Costing, Dues
-│   │   │   └── salesman/         # Mobile Dashboard, Fast Order Taking
-│   │   └── App.jsx               # Role-based routing table
-│   ├── Dockerfile                # Multi-stage Nginx build container
-│   ├── nginx.conf                # Nginx SPA fallback & API proxy
-│   └── vercel.json               # Frontend SPA routing configuration
-├── docker-compose.yml            # Multi-container orchestration (DB + API + Web)
-├── DESIGN.md                     # 2-Page architectural design note
-└── README.md                     # Documentation & benchmark proof
-```
+3. Start the frontend in a second terminal:
 
----
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-## 9. License
+   Open `http://localhost:5173`. Vite proxies `/api` to the local backend. Set `VITE_API_URL` before running or building to use another API host.
 
-Developed for the NIT Tiruchirappalli Internship Evaluation. Distributed under the MIT License.
+## Deployment notes
+
+- Backend Vercel project root: `backend`; set `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, and `NODE_ENV`.
+- Frontend Vercel project root: `frontend`, or use the repository-root `vercel.json`. The frontend rewrite proxies `/api` to the deployed backend.
+- Use managed PostgreSQL for the hosted demo; Vercel serverless functions do not provide a persistent local PostgreSQL volume.
+
+## Submission checklist
+
+- [x] Source code with clear commit history, schema, seed data, and setup commands
+- [x] README and design note
+- [x] Test logins for every role
+- [x] Live links and Docker Compose run command
+- [x] Verified Section 5 benchmark and exports
+- [ ] Record and add the maximum-8-minute demo video link
+- [ ] Confirm the repository is public and the live deployment uses the latest code

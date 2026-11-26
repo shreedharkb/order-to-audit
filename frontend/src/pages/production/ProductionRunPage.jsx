@@ -3,15 +3,8 @@ import client from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
-import {
-  Factory,
-  CheckCircle2,
-  AlertTriangle,
-  PlayCircle,
-  Plus,
-  Scale,
-  DollarSign
-} from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 
 export default function ProductionRunPage() {
   const [runs, setRuns] = useState([]);
@@ -136,12 +129,12 @@ export default function ProductionRunPage() {
       });
 
       if (res.data.hasVarianceAlerts) {
-        toast((t) => (
+        toast((
           <div>
             <p className="font-bold text-red-900">Run completed with variance alerts!</p>
             <p className="text-xs text-red-800">Yield or material consumption exceeded 3% tolerance.</p>
           </div>
-        ), { icon: '⚠️', duration: 6000 });
+        ), { duration: 6000 });
       } else {
         toast.success('Production run completed & finished stock increased!');
       }
@@ -213,23 +206,22 @@ export default function ProductionRunPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Production Execution & BOM Variances</h1>
-        <p className="text-sm text-gray-500">Log daily production runs, track planned vs actual consumption, yield variance, and packet costing</p>
+        <h1 className="page-title">Production runs</h1>
+        <p className="page-subtitle">Record material issues, finished output, overheads, and yield variance.</p>
       </div>
 
       {/* Start New Run Box */}
-      <div className="bg-white rounded-2xl p-6 border shadow-sm space-y-4">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <PlayCircle className="w-5 h-5 text-orange-600" />
-          <span>Start New Production Run (Benchmark Step 2)</span>
-        </h2>
+      <div className="card space-y-4">
+        <h2 className="section-title">Start a production run</h2>
 
-        <form onSubmit={handleCreateRun} className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex-1 w-full">
+        <form onSubmit={handleCreateRun} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="production-bom" className="label">Recipe</label>
             <select
+              id="production-bom"
               value={selectedBomId}
               onChange={e => setSelectedBomId(e.target.value)}
-              className="w-full p-3 bg-gray-50 border rounded-xl text-sm font-semibold"
+              className="input-field"
               required
             >
               <option value="">-- Select Recipe / BOM --</option>
@@ -241,33 +233,30 @@ export default function ProductionRunPage() {
             </select>
           </div>
 
-          <div className="w-full sm:w-44">
+          <div className="w-full sm:w-40">
+            <label htmlFor="batch-multiplier" className="label">Batch multiplier</label>
             <input
+              id="batch-multiplier"
               type="number"
               step="0.5"
               min="0.5"
-              placeholder="Batch mult (1)"
               value={batchMultiplier}
               onChange={e => setBatchMultiplier(e.target.value)}
-              className="w-full p-3 bg-gray-50 border rounded-xl text-sm font-bold"
+              className="input-field"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={creating}
-            className="w-full sm:w-auto px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl shadow-md whitespace-nowrap"
-          >
-            {creating ? 'Creating...' : 'Initialize Batch'}
-          </button>
+          <Button type="submit" disabled={creating} className="w-full sm:w-auto">
+            {creating ? 'Creating...' : 'Start run'}
+          </Button>
         </form>
       </div>
 
       {/* Main Production Workbench */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Runs Sidebar List */}
-        <div className="bg-white rounded-2xl border shadow-sm p-4 space-y-2">
-          <h3 className="font-bold text-gray-900 text-sm px-2 mb-2">Select Production Run</h3>
+        <div className="surface p-4">
+          <h3 className="mb-2 px-2 text-sm font-semibold text-ink-950">Production history</h3>
           <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
             {runs.map(r => (
               <button
@@ -280,12 +269,8 @@ export default function ProductionRunPage() {
                 }`}
               >
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900 text-sm">{r.batch_number}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    r.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {r.status}
-                  </span>
+                  <span className="text-sm font-semibold text-ink-950">{r.batch_number}</span>
+                  <Badge variant={r.status === 'completed' ? 'success' : 'info'}>{r.status}</Badge>
                 </div>
                 <p className="text-xs text-gray-600 font-medium mt-1">{r.finished_item_name}</p>
                 <p className="text-[10px] text-gray-400">{formatDate(r.run_date)} | Exp: {r.expected_output} pkts</p>
@@ -298,33 +283,25 @@ export default function ProductionRunPage() {
         {runDetail ? (
           <div className="lg:col-span-2 space-y-6">
             {/* Header info */}
-            <div className="bg-white rounded-2xl p-6 border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-orange-600">Active Workbench</span>
-                <h2 className="text-xl font-black text-gray-900">{runDetail.batch_number} - {runDetail.finished_item_name}</h2>
-                <p className="text-xs text-gray-500">
-                  Target Yield: <strong className="text-gray-900">{runDetail.expected_output} {runDetail.finished_item_unit}s</strong>
+                <p className="eyebrow">Active workbench</p>
+                <h2 className="mt-1 text-xl font-semibold text-ink-950">{runDetail.batch_number} · {runDetail.finished_item_name}</h2>
+                <p className="mt-1 text-xs text-ink-500">
+                  Target yield: <strong className="font-medium text-ink-900">{runDetail.expected_output} {runDetail.finished_item_unit}s</strong>
                 </p>
               </div>
 
-              <button
-                onClick={prefillBenchmark}
-                className="px-3.5 py-2 text-xs font-bold text-orange-800 bg-orange-100 border border-orange-300 rounded-xl hover:bg-orange-200"
-              >
-                ⚡ Pre-fill Benchmark Scenario
-              </button>
+              <Button variant="secondary" size="sm" onClick={prefillBenchmark}>
+                Pre-fill benchmark
+              </Button>
             </div>
 
             {/* Step 2: Issue Materials */}
-            <div className="bg-white rounded-2xl p-6 border shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <Scale className="w-5 h-5 text-orange-600" />
-                    <span>Raw Material Consumption (Planned vs Actual)</span>
-                  </h3>
-                  <p className="text-xs text-gray-500">Issue ingredients from floor. Deviations from standard recipe will be flagged.</p>
-                </div>
+            <div className="card space-y-4">
+              <div>
+                <h3 className="section-title">Raw material consumption</h3>
+                <p className="mt-1 text-xs text-ink-500">Compare planned quantities with actual issues. Deviations are flagged.</p>
               </div>
 
               <div className="overflow-x-auto">
@@ -349,7 +326,8 @@ export default function ProductionRunPage() {
                               step="any"
                               value={actualIssues[bl.item_id] ?? bl.planned_qty}
                               onChange={e => setActualIssues({ ...actualIssues, [bl.item_id]: e.target.value })}
-                              className="w-24 text-right p-1.5 border border-orange-300 rounded-lg font-bold"
+                              className="input-field w-24 text-right"
+                              aria-label={`Actual quantity for ${bl.item_name}`}
                             />
                           ) : (
                             <span className="font-bold text-gray-900">
@@ -365,80 +343,74 @@ export default function ProductionRunPage() {
               </div>
 
               {runDetail.status === 'draft' && (
-                <button
-                  onClick={handleIssueMaterials}
-                  className="px-5 py-2.5 bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md hover:bg-orange-700"
-                >
-                  Confirm Material Issue (Deduct Raw Stock)
-                </button>
+                <Button size="sm" onClick={handleIssueMaterials}>
+                  Confirm material issue
+                </Button>
               )}
             </div>
 
             {/* Step 3: Complete Run & Output Entry */}
-            <div className="bg-white rounded-2xl p-6 border shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>Production Run Output & Packaging Logging</span>
-              </h3>
+            <div className="card space-y-4">
+              <h3 className="section-title">Output and packaging</h3>
 
               {runDetail.status !== 'completed' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Good Packets Output</label>
+                    <label htmlFor="actual-output" className="label">Good packets output</label>
                     <input
+                      id="actual-output"
                       type="number"
                       step="any"
                       placeholder="e.g. 188"
                       value={actualOutput}
                       onChange={e => setActualOutput(e.target.value)}
-                      className="w-full p-2.5 border-2 border-orange-200 rounded-xl font-bold"
+                      className="input-field"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Damaged Pouches</label>
+                    <label htmlFor="damaged-pouches" className="label">Damaged pouches</label>
                     <input
+                      id="damaged-pouches"
                       type="number"
                       step="any"
                       placeholder="e.g. 6"
                       value={damagedPouches}
                       onChange={e => setDamagedPouches(e.target.value)}
-                      className="w-full p-2.5 border-2 border-orange-200 rounded-xl font-bold"
+                      className="input-field"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Cartons Used</label>
+                    <label htmlFor="cartons-used" className="label">Cartons used</label>
                     <input
+                      id="cartons-used"
                       type="number"
                       step="any"
                       placeholder="e.g. 9"
                       value={cartonsUsed}
                       onChange={e => setCartonsUsed(e.target.value)}
-                      className="w-full p-2.5 border-2 border-orange-200 rounded-xl font-bold"
+                      className="input-field"
                     />
                   </div>
 
                   <div className="sm:col-span-3">
-                    <button
-                      onClick={handleCompleteRun}
-                      className="w-full py-3 bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md hover:bg-emerald-700"
-                    >
-                      Complete Run & Increase Finished Goods Stock
-                    </button>
+                    <Button onClick={handleCompleteRun} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                      Complete run
+                    </Button>
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-emerald-800 font-semibold">Production Run Completed</p>
-                    <p className="text-lg font-black text-emerald-950">
+                    <p className="text-lg font-semibold text-emerald-950">
                       Actual Yield: {runDetail.actual_output} {runDetail.finished_item_unit}s
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-emerald-800">Yield Variance:</p>
-                    <p className={`text-base font-black ${runDetail.yield_analysis?.isFlagged ? 'text-red-700' : 'text-emerald-700'}`}>
+                    <p className={`text-base font-semibold ${runDetail.yield_analysis?.isFlagged ? 'text-red-700' : 'text-emerald-700'}`}>
                       {runDetail.yield_analysis?.variancePercent}% {runDetail.yield_analysis?.isFlagged ? '(FLAGGED >3%)' : '(OK)'}
                     </p>
                   </div>
@@ -448,62 +420,58 @@ export default function ProductionRunPage() {
 
             {/* Step 8: Add Overheads & Packet Costing */}
             {runDetail.status === 'completed' && (
-              <div className="bg-white rounded-2xl p-6 border shadow-sm space-y-4">
-                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
-                  <span>Cost Allocation & Packet Margin (Benchmark Step 8)</span>
-                </h3>
+              <div className="card space-y-4">
+                <h3 className="section-title">Cost allocation</h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Direct Labour (Rs)</label>
+                    <label htmlFor="labour-amount" className="label">Direct labour (Rs)</label>
                     <input
+                      id="labour-amount"
                       type="number"
                       placeholder="e.g. 1200"
                       value={labourAmount}
                       onChange={e => setLabourAmount(e.target.value)}
-                      className="w-full p-2.5 border rounded-xl font-bold"
+                      className="input-field"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Power & Gas (Rs)</label>
+                    <label htmlFor="power-gas-amount" className="label">Power and gas (Rs)</label>
                     <input
+                      id="power-gas-amount"
                       type="number"
                       placeholder="e.g. 600"
                       value={gasPowerAmount}
                       onChange={e => setGasPowerAmount(e.target.value)}
-                      className="w-full p-2.5 border rounded-xl font-bold"
+                      className="input-field"
                     />
                   </div>
 
                   <div className="flex items-end">
-                    <button
-                      onClick={handleAddOverheads}
-                      className="w-full py-2.5 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700"
-                    >
-                      Allocate Overheads
-                    </button>
+                    <Button variant="secondary" onClick={handleAddOverheads} className="w-full">
+                      Allocate overheads
+                    </Button>
                   </div>
                 </div>
 
                 {/* Live Cost per packet card */}
-                <div className="bg-gradient-to-r from-stone-900 to-stone-800 text-white p-5 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-[10px] text-stone-400 uppercase tracking-wider">Raw Material Cost</p>
-                    <p className="text-base font-bold">{formatCurrency(runDetail.total_material_cost_paisa)}</p>
+                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-4">
+                  <div className="bg-slate-50 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">Raw material cost</p>
+                    <p className="mt-1 text-base font-semibold text-ink-950">{formatCurrency(runDetail.total_material_cost_paisa)}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-stone-400 uppercase tracking-wider">Total Overheads</p>
-                    <p className="text-base font-bold">{formatCurrency(parseInt(runDetail.labour_cost_paisa || 0) + parseInt(runDetail.overhead_cost_paisa || 0))}</p>
+                  <div className="bg-slate-50 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">Total overheads</p>
+                    <p className="mt-1 text-base font-semibold text-ink-950">{formatCurrency(parseInt(runDetail.labour_cost_paisa || 0) + parseInt(runDetail.overhead_cost_paisa || 0))}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-orange-400 uppercase tracking-wider">Cost per Packet</p>
-                    <p className="text-xl font-black text-orange-400">{formatCurrency(runDetail.cost_per_unit_paisa)}</p>
+                  <div className="bg-slate-50 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">Cost per packet</p>
+                    <p className="mt-1 text-lg font-semibold text-primary-700">{formatCurrency(runDetail.cost_per_unit_paisa)}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-emerald-400 uppercase tracking-wider">Selling Margin</p>
-                    <p className="text-xl font-black text-emerald-400">
+                  <div className="bg-slate-50 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">Selling margin</p>
+                    <p className="mt-1 text-lg font-semibold text-emerald-700">
                       {formatCurrency(parseInt(runDetail.selling_price_paisa || 0) - parseInt(runDetail.cost_per_unit_paisa || 0))}
                     </p>
                   </div>

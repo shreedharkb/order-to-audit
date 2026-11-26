@@ -5,6 +5,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Manrope', 'Inter', 'Segoe UI', 'system-ui', 'sans-serif'],
       },
       colors: {
         primary: {
@@ -34,18 +35,23 @@ export default {
         },
       },
       boxShadow: {
-        card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04)',
-        elevated: '0 18px 50px rgba(15, 23, 42, 0.16)',
-        focus: '0 0 0 4px rgba(234, 88, 12, 0.12)',
+        card: '0 1px 2px rgba(15, 23, 42, 0.03)',
+        elevated: '0 16px 40px rgba(15, 23, 42, 0.12)',
+        focus: '0 0 0 3px rgba(234, 88, 12, 0.12)',
       },
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(6px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'dialog-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out',
+        'dialog-in': 'dialog-in 150ms ease-out',
       },
     }
   },

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '../../utils/format';
+import { formatCurrency, formatDate, getStatusLabel, getStatusVariant } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { PlusCircle, ShoppingBag, TrendingUp, Calendar, ArrowRight } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
 
 export default function SalesmanDashboard() {
   const { user } = useAuth();
@@ -18,117 +21,90 @@ export default function SalesmanDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner message="Loading your sales dashboard..." />;
+  if (loading) return <LoadingSpinner message="Loading sales dashboard..." />;
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 mb-2">
-            Field Mobile View
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Vanakkam, {user.full_name}!</h1>
-          <p className="text-orange-100 text-sm mt-1">Book orders directly to factory with live inventory verification.</p>
+          <p className="eyebrow">Field sales</p>
+          <h1 className="mt-2 page-title">Welcome, {user.full_name || user.fullName || user.username}</h1>
+          <p className="page-subtitle">Book orders to the factory and track their progress.</p>
         </div>
-        <Link
-          to="/salesman/new-order"
-          className="inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-white text-orange-700 font-bold hover:bg-orange-50 shadow-md hover:shadow-lg transition-all"
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span>Take New Order</span>
-        </Link>
+        <Button asChild>
+          <Link to="/salesman/new-order">
+            <Plus className="h-4 w-4" /> Take new order
+          </Link>
+        </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
-            <ShoppingBag className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Today's Orders</p>
-            <h3 className="text-2xl font-bold text-gray-900">{data?.today?.count || 0}</h3>
-            <p className="text-xs text-orange-600 font-medium">{formatCurrency(data?.today?.totalPaisa || 0)} booked</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="metric-card border-blue-200 border-t-blue-400 bg-blue-50/70">
+          <p className="metric-label">Today's orders</p>
+          <p className="metric-value text-blue-950">{data?.today?.count || 0}</p>
+          <p className="metric-detail">{formatCurrency(data?.today?.totalPaisa || 0)} booked today</p>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-            <Calendar className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">This Month</p>
-            <h3 className="text-2xl font-bold text-gray-900">{data?.month?.count || 0}</h3>
-            <p className="text-xs text-amber-700 font-medium">{formatCurrency(data?.month?.totalPaisa || 0)} total</p>
-          </div>
-        </div>
+        <Card className="metric-card border-violet-200 border-t-violet-400 bg-violet-50/70">
+          <p className="metric-label">This month</p>
+          <p className="metric-value text-violet-950">{data?.month?.count || 0}</p>
+          <p className="metric-detail">{formatCurrency(data?.month?.totalPaisa || 0)} total value</p>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-sm flex items-center space-x-4 sm:col-span-2 lg:col-span-1">
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer Reach</p>
-            <h3 className="text-2xl font-bold text-gray-900">{data?.customerSales?.length || 0}</h3>
-            <p className="text-xs text-emerald-600 font-medium">Active retail points</p>
-          </div>
-        </div>
+        <Card className="metric-card border-emerald-200 border-t-emerald-400 bg-emerald-50/70 sm:col-span-2 lg:col-span-1">
+          <p className="metric-label">Customer reach</p>
+          <p className="metric-value text-emerald-950">{data?.customerSales?.length || 0}</p>
+          <p className="metric-detail">Customers with booked orders</p>
+        </Card>
       </div>
 
-      {/* Recent Orders List */}
-      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900">Recent Orders Taken</h2>
-          <Link to="/salesman/orders" className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-            <span>View All</span>
-            <ArrowRight className="w-4 h-4" />
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-4">
+          <div>
+            <h2 className="section-title">Recent orders</h2>
+            <p className="mt-1 text-xs text-ink-500">Your latest field orders and their status</p>
+          </div>
+          <Link to="/salesman/orders" className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 hover:text-primary-800">
+            View all
           </Link>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-slate-200">
           {!data?.recentOrders?.length ? (
-            <div className="p-8 text-center text-gray-400 font-medium">
-              No orders booked yet. Click "Take New Order" to create one.
-            </div>
+            <div className="px-5 py-10 text-center text-sm text-ink-500">No orders booked yet.</div>
           ) : (
             data.recentOrders.map(order => (
-              <div key={order.id} className="p-4 sm:p-5 hover:bg-orange-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-gray-900 text-sm sm:text-base">{order.order_number}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                      {getStatusLabel(order.status)}
-                    </span>
+              <div key={order.id} className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-ink-950">{order.order_number}</span>
+                    <Badge variant={getStatusVariant(order.status)}>{getStatusLabel(order.status)}</Badge>
                   </div>
-                  <p className="text-sm text-gray-700 font-medium">{order.customer_name} ({order.customer_state})</p>
-                  <p className="text-xs text-gray-400">{formatDate(order.order_date)}</p>
+                  <p className="mt-1 text-sm text-ink-600">{order.customer_name} ({order.customer_state})</p>
+                  <p className="mt-0.5 text-xs text-ink-400">{formatDate(order.order_date)}</p>
                 </div>
-                <div className="text-left sm:text-right">
-                  <span className="text-base font-extrabold text-gray-900">{formatCurrency(order.total_paisa)}</span>
-                </div>
+                <p className="text-sm font-semibold tabular-nums text-ink-950 sm:text-right">{formatCurrency(order.total_paisa)}</p>
               </div>
             ))
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Customer-wise Sales Summary */}
       {data?.customerSales?.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-5">
-          <h2 className="text-base font-bold text-gray-900 mb-4">Customer-wise Sales</h2>
-          <div className="space-y-3">
-            {data.customerSales.map((cs, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm py-2 border-b border-gray-50 last:border-0">
+        <Card className="p-5 sm:p-6">
+          <h2 className="section-title">Customer-wise sales</h2>
+          <div className="mt-4 divide-y divide-slate-200">
+            {data.customerSales.map((customer, index) => (
+              <div key={index} className="flex items-center justify-between gap-4 py-3 text-sm">
                 <div>
-                  <p className="font-semibold text-gray-800">{cs.customer_name}</p>
-                  <p className="text-xs text-gray-400">{cs.order_count} order(s)</p>
+                  <p className="font-medium text-ink-800">{customer.customer_name}</p>
+                  <p className="mt-0.5 text-xs text-ink-400">{customer.order_count} orders</p>
                 </div>
-                <span className="font-bold text-gray-900">{formatCurrency(cs.total_paisa)}</span>
+                <span className="font-semibold tabular-nums text-ink-950">{formatCurrency(customer.total_paisa)}</span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

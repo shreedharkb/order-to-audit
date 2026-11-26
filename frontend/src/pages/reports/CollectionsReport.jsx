@@ -56,8 +56,8 @@ export default function CollectionsReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Payments & Collections Register</h1>
-        <p className="text-sm text-gray-500">Customer receipts, payment modes, invoice references, and reversal status</p>
+        <h1 className="page-title">Payments & Collections Register</h1>
+        <p className="page-subtitle">Customer receipts, payment modes, invoice references, and reversal status</p>
       </div>
       <DateRangeFilter
         loading={loading}

@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { Wallet, Plus, CreditCard } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function PaymentManagement() {
   const [payments, setPayments] = useState([]);
@@ -82,7 +82,7 @@ export default function PaymentManagement() {
       key: 'outstandingPaisa',
       label: 'Balance Due',
       align: 'right',
-      render: val => <span className={`font-black ${val > 0 ? 'text-red-700' : 'text-green-700'}`}>{formatCurrency(val)}</span>
+      render: val => <span className={`font-semibold ${val > 0 ? 'text-red-700' : 'text-green-700'}`}>{formatCurrency(val)}</span>
     }
   ];
 
@@ -91,24 +91,21 @@ export default function PaymentManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Customer Collections & Receivables</h1>
-        <p className="text-sm text-gray-500">Record customer remittances against outstanding GST invoices</p>
+        <h1 className="page-title">Collections and receivables</h1>
+        <p className="page-subtitle">Record customer remittances against outstanding GST invoices.</p>
       </div>
 
       {/* Record Payment Card */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm space-y-4">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <Wallet className="w-5 h-5 text-emerald-600" />
-          <span>Record Customer Payment (Benchmark Step 7: Rs 4,000 from Retailer A)</span>
-        </h2>
+      <div className="card space-y-4">
+        <h2 className="section-title">Record customer payment</h2>
 
         <form onSubmit={handleRecordPayment} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Customer</label>
+            <label className="label">Customer</label>
             <select
               value={customerId}
               onChange={e => setCustomerId(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-semibold"
+              className="input-field"
               required
             >
               <option value="">Select Customer</option>
@@ -117,7 +114,7 @@ export default function PaymentManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Amount (Rs)</label>
+            <label className="label">Amount (Rs)</label>
             <input
               type="number"
               step="any"
@@ -130,11 +127,11 @@ export default function PaymentManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Mode</label>
+            <label className="label">Mode</label>
             <select
               value={mode}
               onChange={e => setMode(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+              className="input-field"
             >
               <option value="cash">Cash</option>
               <option value="upi">UPI / GPay</option>
@@ -144,13 +141,13 @@ export default function PaymentManagement() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-600 mb-1 block">Ref / Cheque No</label>
+            <label className="label">Ref / Cheque No</label>
             <input
               type="text"
               placeholder="UPI ref or Cheque#"
               value={referenceNumber}
               onChange={e => setReferenceNumber(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+              className="input-field"
             />
           </div>
 
@@ -158,7 +155,7 @@ export default function PaymentManagement() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-1"
+              className="btn-success w-full"
             >
               <Plus className="w-4 h-4" />
               <span>Record Payment</span>
@@ -166,8 +163,8 @@ export default function PaymentManagement() {
           </div>
         </form>
 
-        <div className="p-3 bg-emerald-50 rounded-xl text-xs text-emerald-950 flex items-center justify-between">
-          <span>💡 <strong>Benchmark Quick Fill:</strong> Select <em>Retailer A</em>, Amount: <strong>Rs 4,000</strong> to test balance reduction to <strong>Rs 3,875</strong>.</span>
+        <div className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-950 sm:flex-row sm:items-center sm:justify-between">
+          <span><strong>Quick fill:</strong> Select <em>Retailer A</em>, amount <strong>Rs 4,000</strong> to test the balance reduction.</span>
           <button
             type="button"
             onClick={() => {

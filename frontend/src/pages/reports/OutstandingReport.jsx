@@ -36,7 +36,7 @@ export default function OutstandingReport() {
       key: 'outstandingPaisa',
       label: 'Balance Dues',
       align: 'right',
-      render: val => <span className={`font-black ${val > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(val)}</span>
+      render: val => <span className={`font-semibold ${val > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(val)}</span>
     },
     {
       key: 'ageing',
@@ -69,8 +69,8 @@ export default function OutstandingReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Accounts Receivable & Ageing Analysis</h1>
-        <p className="text-sm text-gray-500">Current customer balances as of {formatDate(new Date())}, aged using FIFO allocation</p>
+        <h1 className="page-title">Accounts Receivable & Ageing Analysis</h1>
+        <p className="page-subtitle">Current customer balances as of {formatDate(new Date())}, aged using FIFO allocation</p>
       </div>
 
       <DataTable

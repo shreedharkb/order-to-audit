@@ -1,108 +1,38 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  FileText,
-  ShieldCheck,
-  Package,
-  Factory,
-  Wallet,
-  TrendingUp,
-  ArrowRight
-} from 'lucide-react';
+
+const reports = [
+  { title: 'Sales register', desc: 'Customer and product sales with CGST, SGST, and IGST breakdown.', path: '/reports/sales' },
+  { title: 'GST outward supplies', desc: 'GSTR-1 and GSTR-3B schedules by tax rate and supply type.', path: '/reports/gst' },
+  { title: 'Stock summary and ledger', desc: 'Live balances, valuation rates, and inventory movement history.', path: '/reports/stock' },
+  { title: 'Purchase register', desc: 'Supplier receipts for raw materials and packaging.', path: '/reports/purchases' },
+  { title: 'Production variance', desc: 'Recipe consumption, actual yield, scrap, and tolerance alerts.', path: '/reports/production' },
+  { title: 'Payments and collections', desc: 'Customer receipts by date, mode, and invoice reference.', path: '/reports/collections' },
+  { title: 'Receivables and ageing', desc: 'Outstanding balances grouped into ageing buckets.', path: '/reports/outstanding' },
+  { title: 'Cost and margins', desc: 'Weighted material costs, overheads, and cost per packet.', path: '/reports/cost' }
+];
 
 export default function ReportsPage() {
-  const reports = [
-    {
-      title: 'Sales Register',
-      desc: 'Customer-wise & product-wise sales with CGST, SGST & IGST breakdown',
-      path: '/reports/sales',
-      icon: FileText,
-      color: 'bg-blue-50 text-blue-600 border-blue-200'
-    },
-    {
-      title: 'GST Outward Supplies (GSTR-1 / 3B)',
-      desc: 'Tax schedule grouped by rate, intra vs inter-state supply for filing',
-      path: '/reports/gst',
-      icon: ShieldCheck,
-      color: 'bg-emerald-50 text-emerald-600 border-emerald-200'
-    },
-    {
-      title: 'Stock Summary & Audit Ledger',
-      desc: 'Live floor balance reconciliation, unit rates, and inventory movement history',
-      path: '/reports/stock',
-      icon: Package,
-      color: 'bg-purple-50 text-purple-600 border-purple-200'
-    },
-    {
-      title: 'Purchase Register',
-      desc: 'Supplier-wise raw material and packaging receipts with quantity, rate, and value',
-      path: '/reports/purchases',
-      icon: FileText,
-      color: 'bg-cyan-50 text-cyan-600 border-cyan-200'
-    },
-    {
-      title: 'Production Variance Report',
-      desc: 'Recipe consumption vs actual yield, scrap rates, and tolerance alerts (>3%)',
-      path: '/reports/production',
-      icon: Factory,
-      color: 'bg-amber-50 text-amber-600 border-amber-200'
-    },
-    {
-      title: 'Payments & Collections',
-      desc: 'Customer receipts by date, mode, invoice reference, and reversal status',
-      path: '/reports/collections',
-      icon: Wallet,
-      color: 'bg-teal-50 text-teal-600 border-teal-200'
-    },
-    {
-      title: 'Receivables & Ageing Analysis',
-      desc: 'Customer outstanding amounts grouped by 0-30, 31-60, 61-90, 90+ days',
-      path: '/reports/outstanding',
-      icon: Wallet,
-      color: 'bg-rose-50 text-rose-600 border-rose-200'
-    },
-    {
-      title: 'Cost per Packet & Margins',
-      desc: 'Weighted average raw materials + direct labour & overheads allocation',
-      path: '/reports/cost',
-      icon: TrendingUp,
-      color: 'bg-orange-50 text-orange-600 border-orange-200'
-    }
-  ];
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Financial & Production Auditor Portal</h1>
-        <p className="text-sm text-gray-500">Exportable registers and analytical audit reports ready for monthly sign-off</p>
+        <h1 className="page-title">Auditor reports</h1>
+        <p className="page-subtitle">Exportable registers and analysis for monthly sign-off.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {reports.map((rep, idx) => {
-          const Icon = rep.icon;
-          return (
-            <Link
-              key={idx}
-              to={rep.path}
-              className="bg-white rounded-2xl p-6 border border-gray-200/90 shadow-sm hover:shadow-md hover:border-orange-400 transition-all flex flex-col justify-between group"
-            >
-              <div className="space-y-3">
-                <div className={`w-12 h-12 rounded-xl border flex items-center justify-center font-bold ${rep.color}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
-                  {rep.title}
-                </h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{rep.desc}</p>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-orange-600">
-                <span>View Full Schedule</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </Link>
-          );
-        })}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {reports.map((report, index) => (
+          <Link
+            key={report.path}
+            to={report.path}
+            className="group flex min-h-[190px] flex-col rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-primary-300 hover:bg-primary-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+          >
+            <span className="text-xs font-medium tabular-nums text-ink-400">{String(index + 1).padStart(2, '0')}</span>
+            <h2 className="mt-4 text-base font-semibold text-ink-950">{report.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-500">{report.desc}</p>
+            <span className="mt-auto pt-5 text-sm font-medium text-primary-700 group-hover:underline">Open report</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

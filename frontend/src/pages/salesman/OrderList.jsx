@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import client from '../../api/client';
-import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '../../utils/format';
+import { formatCurrency, formatDate, getStatusLabel } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DataTable from '../../components/DataTable';
-import { ClipboardList, ChevronDown, ChevronUp } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function OrderList() {
   const [orders, setOrders] = useState([]);
@@ -51,9 +52,9 @@ export default function OrderList() {
       key: 'status',
       label: 'Status',
       render: (val) => (
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(val)}`}>
+        <Badge variant={{ submitted: 'warning', approved: 'info', invoiced: 'secondary', dispatched: 'success', rejected: 'danger' }[val] || 'outline'}>
           {getStatusLabel(val)}
-        </span>
+        </Badge>
       )
     },
     {
@@ -74,8 +75,8 @@ export default function OrderList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Orders Register</h1>
-          <p className="text-sm text-gray-500">Track and monitor field orders and fulfillment status</p>
+          <h1 className="page-title">Orders Register</h1>
+          <p className="page-subtitle">Track and monitor field orders and fulfillment status</p>
         </div>
 
         {/* Status Filter Tabs */}
@@ -106,7 +107,7 @@ export default function OrderList() {
 
           {/* Expanded Drawer preview */}
           {expandedOrderId && orderDetails[expandedOrderId] && (
-            <div className="bg-orange-50/70 border border-orange-200 rounded-2xl p-5 animate-in fade-in space-y-3">
+            <div className="bg-orange-50/70 border border-orange-200 rounded-xl p-5 animate-in fade-in space-y-3">
               <h3 className="font-bold text-orange-950 text-sm">
                 Line Items for {orderDetails[expandedOrderId].order_number} ({orderDetails[expandedOrderId].customer_name})
               </h3>
@@ -126,7 +127,7 @@ export default function OrderList() {
                         <td className="p-3 font-medium text-gray-800">{line.item_name}</td>
                         <td className="p-3 text-right font-bold text-gray-900">{parseFloat(line.qty)} {line.unit}s</td>
                         <td className="p-3 text-right text-gray-600">{formatCurrency(line.price_paisa)}</td>
-                        <td className="p-3 text-right font-extrabold text-orange-700">{formatCurrency(line.amount_paisa)}</td>
+                        <td className="p-3 text-right font-semibold text-primary-700">{formatCurrency(line.amount_paisa)}</td>
                       </tr>
                     ))}
                   </tbody>

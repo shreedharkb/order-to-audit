@@ -64,26 +64,66 @@ const getFinancialYear = (date = new Date()) => {
   return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
 };
 
-const generateInvoiceNumber = async (client) => {
+const generateInvoiceNumber = async (client, date = new Date()) => {
   const prefixRes = await client.query("SELECT value FROM settings WHERE key = 'invoice_prefix'");
   const prefix = prefixRes.rows[0]?.value || 'INV';
+  const financialYear = getFinancialYear(date);
+  const counterKey = `invoice_counter_${financialYear}`;
+
+  await client.query(
+    `INSERT INTO settings (key, value, description)
+     SELECT $1, COALESCE(MAX(CAST(SPLIT_PART(invoice_number, '/', 3) AS INTEGER)), 0)::TEXT, $2
+     FROM invoices
+     WHERE invoice_number LIKE $3
+     ON CONFLICT (key) DO NOTHING`,
+    [counterKey, `Invoice counter for ${financialYear}`, `${prefix}/${financialYear}/%`]
+  );
 
   const counterRes = await client.query(
-    "SELECT value FROM settings WHERE key = 'invoice_counter' FOR UPDATE"
+    'SELECT value FROM settings WHERE key = $1 FOR UPDATE',
+    [counterKey]
   );
   const counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
 
   await client.query(
-    "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'invoice_counter'",
-    [counter.toString()]
+    'UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = $2',
+    [counter.toString(), counterKey]
   );
 
-  return `${prefix}/${getFinancialYear()}/${counter.toString().padStart(4, '0')}`;
+  return `${prefix}/${financialYear}/${counter.toString().padStart(4, '0')}`;
+};
+
+const generateCreditNoteNumber = async (client, date = new Date()) => {
+  const financialYear = getFinancialYear(date);
+  const counterKey = `credit_note_counter_${financialYear}`;
+
+  await client.query(
+    `INSERT INTO settings (key, value, description)
+     SELECT $1, COALESCE(MAX(CAST(SPLIT_PART(credit_note_number, '/', 3) AS INTEGER)), 0)::TEXT, $2
+     FROM invoices
+     WHERE credit_note_number LIKE $3
+     ON CONFLICT (key) DO NOTHING`,
+    [counterKey, `Credit note counter for ${financialYear}`, `CN/${financialYear}/%`]
+  );
+
+  const counterRes = await client.query(
+    'SELECT value FROM settings WHERE key = $1 FOR UPDATE',
+    [counterKey]
+  );
+  const counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
+
+  await client.query(
+    'UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = $2',
+    [counter.toString(), counterKey]
+  );
+
+  return `CN/${financialYear}/${counter.toString().padStart(4, '0')}`;
 };
 
 module.exports = {
   calculateGST,
   isInterState,
   getFinancialYear,
-  generateInvoiceNumber
+  generateInvoiceNumber,
+  generateCreditNoteNumber
 };

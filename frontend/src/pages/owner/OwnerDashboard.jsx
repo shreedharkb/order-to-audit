@@ -1,19 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../../api/client';
-import { formatCurrency, formatDate } from '../../utils/format';
+import { formatCurrency } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import StockBadge from '../../components/StockBadge';
-import {
-  TrendingUp,
-  AlertTriangle,
-  Receipt,
-  Wallet,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  Factory
-} from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
 
 export default function OwnerDashboard() {
   const [data, setData] = useState(null);
@@ -26,109 +19,133 @@ export default function OwnerDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner message="Connecting to executive command center..." />;
+  if (loading) return <LoadingSpinner message="Loading executive dashboard..." />;
 
-  const { metrics, lowStockAlerts, varianceAlerts, recentOrders, stockSummary } = data || {};
+  const { metrics, varianceAlerts, materialVarianceAlerts, latestRunCost, stockSummary } = data || {};
+  const alertCount = (varianceAlerts?.length || 0) + (materialVarianceAlerts?.length || 0);
+
+  const cards = [
+    {
+      label: 'Booked orders today',
+      value: formatCurrency(metrics?.todayOrdersTotalPaisa || 0),
+      detail: `${metrics?.todayOrdersCount || 0} orders`,
+      surface: 'border-blue-200 border-t-blue-400 bg-blue-50/70',
+      accent: 'text-blue-950'
+    },
+    {
+      label: 'Pending orders',
+      value: metrics?.pendingApprovalsCount || 0,
+      detail: 'Awaiting verification',
+      surface: 'border-amber-200 border-t-amber-400 bg-amber-50/70',
+      accent: 'text-amber-950'
+    },
+    {
+      label: 'Variance alerts',
+      value: alertCount,
+      detail: 'Beyond configured tolerance',
+      surface: 'border-rose-200 border-t-rose-400 bg-rose-50/70',
+      accent: 'text-rose-950'
+    },
+    {
+      label: 'Latest packet cost',
+      value: latestRunCost ? formatCurrency(latestRunCost.cost_per_unit_paisa) : '—',
+      detail: latestRunCost ? latestRunCost.batch_number : 'No completed run',
+      surface: 'border-violet-200 border-t-violet-400 bg-violet-50/70',
+      accent: 'text-violet-950'
+    },
+    {
+      label: 'Total receivables',
+      value: formatCurrency(metrics?.totalOutstandingPaisa || 0),
+      detail: 'Customer balance dues',
+      surface: 'border-emerald-200 border-t-emerald-400 bg-emerald-50/70',
+      accent: 'text-emerald-950'
+    }
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Executive Header */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-orange-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-600/30 text-orange-400 border border-orange-500/30">
-              Executive Overview
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black mt-2 tracking-tight">Sri Lakshmi Foods Operations</h1>
-            <p className="text-stone-300 text-sm mt-1">Real-time FactoryLoop operations across Sales, Production, and Finance</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link
-              to="/reports"
-              className="px-5 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm shadow-lg transition-colors"
-            >
-              Auditor Portal →
-            </Link>
-          </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="eyebrow">Executive overview</p>
+          <h1 className="mt-2 page-title">Operations overview</h1>
+          <p className="page-subtitle">Sales, production, inventory, and finance in one view.</p>
         </div>
+        <Button asChild variant="secondary">
+          <Link to="/reports">Open auditor portal</Link>
+        </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Booked Orders Today</p>
-          <h3 className="text-2xl font-black text-gray-900 mt-1">{formatCurrency(metrics?.todayOrdersTotalPaisa || 0)}</h3>
-          <p className="text-xs text-orange-600 font-bold mt-0.5">{metrics?.todayOrdersCount || 0} order(s)</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending Orders</p>
-          <h3 className="text-2xl font-black text-gray-900 mt-1">{metrics?.pendingApprovalsCount || 0}</h3>
-          <p className="text-xs text-blue-600 font-medium mt-0.5">Awaiting verification</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Variance Alerts</p>
-          <h3 className="text-2xl font-black text-red-600 mt-1">{varianceAlerts?.length || 0}</h3>
-          <p className="text-xs text-red-500 font-medium mt-0.5">Exceeded 3% tolerance</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Receivables</p>
-          <h3 className="text-2xl font-black text-emerald-700 mt-1">{formatCurrency(metrics?.totalOutstandingPaisa || 0)}</h3>
-          <p className="text-xs text-emerald-600 font-medium mt-0.5">Customer balance dues</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
+        {cards.map(card => (
+          <Card key={card.label} className={`metric-card ${card.surface}`}>
+            <p className="metric-label">{card.label}</p>
+            <p className={`metric-value ${card.accent}`}>{card.value}</p>
+            <p className="metric-detail">{card.detail}</p>
+          </Card>
+        ))}
       </div>
 
-      {/* Variance Alerts & Low Stock Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Production Variance Flags */}
-        <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <span>Recipe &amp; Yield Variance Alerts (&gt;3%)</span>
-          </h2>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Card className="p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="section-title">Material and yield variance</h2>
+            <Badge variant={alertCount ? 'danger' : 'success'}>
+              {alertCount ? `${alertCount} alerts` : 'Within tolerance'}
+            </Badge>
+          </div>
 
-          <div className="space-y-3">
-            {!varianceAlerts?.length ? (
-              <p className="text-xs text-gray-400 p-4 text-center">All recent production runs operated within tolerance</p>
+          <div className="mt-4 space-y-3">
+            {!alertCount ? (
+              <p className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-ink-500">
+                All recent production runs are within tolerance.
+              </p>
             ) : (
-              varianceAlerts.map(v => (
-                <div key={v.id} className="p-3.5 bg-red-50/70 border border-red-200 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm text-red-950">{v.batch_number} - {v.finished_item_name}</p>
-                    <p className="text-xs text-red-800">
-                      Expected: {v.expected_output} pkts | Actual: {v.actual_output} pkts
-                    </p>
+              <>
+                {varianceAlerts?.map(alert => (
+                  <div key={`yield-${alert.id}`} className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-red-950">{alert.batch_number} · {alert.finished_item_name}</p>
+                        <p className="mt-1 text-xs text-red-800">
+                          Expected {alert.expected_output} packets, actual {alert.actual_output} packets
+                        </p>
+                      </div>
+                      <Badge variant="danger">{alert.yield_variance_percent}% yield</Badge>
+                    </div>
                   </div>
-                  <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-200 text-red-900">
-                    {v.yield_variance_percent}% Variance
-                  </span>
-                </div>
-              ))
+                ))}
+                {materialVarianceAlerts?.map(alert => (
+                  <div key={`material-${alert.id}`} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-amber-950">{alert.batch_number} · {alert.item_name}</p>
+                        <p className="mt-1 text-xs text-amber-800">
+                          Planned {alert.planned_qty} {alert.unit}, actual {alert.actual_qty} {alert.unit}
+                        </p>
+                      </div>
+                      <Badge variant="warning">{alert.variance_percent}% usage</Badge>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </div>
-        </div>
+        </Card>
 
-        {/* Live Stock Alerts */}
-        <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Factory className="w-5 h-5 text-orange-600" />
-            <span>Inventory Balances</span>
-          </h2>
-
-          <div className="space-y-2">
+        <Card className="p-5 sm:p-6">
+          <h2 className="section-title">Inventory balances</h2>
+          <div className="mt-4 divide-y divide-slate-200">
             {stockSummary?.slice(0, 5).map(item => (
-              <div key={item.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-xs text-gray-900">{item.name}</p>
-                  <p className="text-[10px] text-gray-500 uppercase">{item.type.replace('_', ' ')}</p>
+              <div key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink-950">{item.name}</p>
+                  <p className="mt-0.5 text-xs capitalize text-ink-400">{item.type.replaceAll('_', ' ')}</p>
                 </div>
                 <StockBadge balance={item.current_balance} reorderLevel={item.reorder_level} unit={item.unit} />
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

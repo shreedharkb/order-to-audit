@@ -45,7 +45,7 @@ export default function CostReport() {
     { key: 'materialCostPerUnitPaisa', label: 'Raw & Pkg Cost / pkt', align: 'right', render: val => formatCurrency(val) },
     { key: 'labourCostPerUnitPaisa', label: 'Labour / pkt', align: 'right', render: val => formatCurrency(val) },
     { key: 'overheadCostPerUnitPaisa', label: 'Power/Gas / pkt', align: 'right', render: val => formatCurrency(val) },
-    { key: 'costPerUnitPaisa', label: 'Cost per Packet', align: 'right', render: val => <span className="font-black text-orange-700">{formatCurrency(val)}</span> },
+    { key: 'costPerUnitPaisa', label: 'Cost per Packet', align: 'right', render: val => <span className="font-semibold text-orange-700">{formatCurrency(val)}</span> },
     { key: 'sellingPricePaisa', label: 'Selling Price', align: 'right', render: val => formatCurrency(val) },
     {
       key: 'marginPercent',
@@ -62,8 +62,8 @@ export default function CostReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Packet Unit Costing & Gross Margins</h1>
-        <p className="text-sm text-gray-500">Weighted-average raw material costs + direct batch labour & utilities allocation</p>
+        <h1 className="page-title">Packet Unit Costing & Gross Margins</h1>
+        <p className="page-subtitle">Weighted-average raw material costs + direct batch labour & utilities allocation</p>
       </div>
 
       <DateRangeFilter onApply={handleApply} loading={loading} />

@@ -392,9 +392,7 @@ router.post('/:id/cancel', authorize('admin', 'owner'), async (req, res) => {
     }
 
     await client.query('UPDATE payments SET is_reversed = TRUE WHERE invoice_id = $1', [invoice.id]);
-    const creditCountRes = await client.query('SELECT COUNT(*) FROM invoices WHERE credit_note_number IS NOT NULL');
-    const creditCount = parseInt(creditCountRes.rows[0].count, 10) + 1;
-    const creditNoteNumber = `CN/${gstService.getFinancialYear()}/${creditCount.toString().padStart(4, '0')}`;
+    const creditNoteNumber = await gstService.generateCreditNoteNumber(client);
 
     const cancelled = await client.query(
       `UPDATE invoices

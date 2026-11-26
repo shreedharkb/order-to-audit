@@ -4,7 +4,8 @@ import client from '../../api/client';
 import { formatCurrency, formatDate } from '../../utils/format';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { FileDown, Truck, ArrowLeft, Building2 } from 'lucide-react';
+import { FileDown, Truck, ArrowLeft } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -56,52 +57,41 @@ export default function InvoiceDetail() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between">
-        <Link to="/admin/invoices" className="inline-flex items-center gap-1 text-sm font-bold text-gray-600 hover:text-gray-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Link to="/admin/invoices" className="inline-flex items-center gap-1 text-sm font-medium text-ink-600 hover:text-ink-950">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Invoices</span>
         </Link>
 
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleDownloadPDF}
-            className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-black shadow-sm"
-          >
-            <FileDown className="w-4 h-4" />
-            <span>Download PDF</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="secondary" onClick={handleDownloadPDF}>
+            <FileDown className="h-4 w-4" />
+            Download PDF
+          </Button>
 
-          {!invoice.is_dispatched && (
-            <button
-              onClick={handleDispatch}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 shadow-sm"
-            >
-              <Truck className="w-4 h-4" />
-              <span>Record Dispatch</span>
-            </button>
+          {invoice.status === 'active' && !invoice.is_dispatched && (
+            <Button onClick={handleDispatch} className="bg-emerald-600 hover:bg-emerald-700">
+              <Truck className="h-4 w-4" />
+              Record dispatch
+            </Button>
           )}
         </div>
       </div>
 
       {/* Invoice Sheet Preview */}
-      <div className="bg-white rounded-2xl border border-gray-300 shadow-xl p-8 space-y-6">
+      <div className="surface space-y-6 p-5 sm:p-8">
         {/* Banner */}
-        <div className="border-b-2 border-orange-600 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-600 text-white flex items-center justify-center font-bold">
-              <Building2 className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-gray-900">SRI LAKSHMI FOODS</h1>
-              <p className="text-xs text-gray-500">12, Industrial Estate, Srirangam, Tiruchirappalli - 620006</p>
-              <p className="text-xs font-mono font-bold text-orange-700">GSTIN: 33AABCS1429B1ZB | State: Tamil Nadu (33)</p>
-            </div>
+        <div className="flex flex-col gap-4 border-b-2 border-primary-600 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-ink-950">SRI LAKSHMI FOODS</h1>
+            <p className="mt-1 text-xs text-ink-500">12, Industrial Estate, Srirangam, Tiruchirappalli - 620006</p>
+            <p className="mt-1 font-mono text-xs font-medium text-primary-700">GSTIN: 33AABCS1429B1ZB | State: Tamil Nadu (33)</p>
           </div>
           <div className="text-left sm:text-right">
-            <span className="inline-block px-3 py-1 rounded bg-orange-100 text-orange-900 font-black text-xs uppercase tracking-wider mb-1">
+            <span className="inline-block px-3 py-1 rounded bg-orange-100 text-orange-900 font-semibold text-xs uppercase tracking-wider mb-1">
               TAX INVOICE
             </span>
-            <p className="text-lg font-black text-gray-900">{invoice.invoice_number}</p>
+            <p className="text-lg font-semibold text-gray-900">{invoice.invoice_number}</p>
             <p className="text-xs text-gray-500">Date: {formatDate(invoice.invoice_date)}</p>
           </div>
         </div>
@@ -118,7 +108,7 @@ export default function InvoiceDetail() {
           <div className="text-left sm:text-right space-y-1 text-xs">
             <p><span className="text-gray-500">Place of Supply:</span> <strong className="text-gray-900">{invoice.place_of_supply_state} ({invoice.place_of_supply_code})</strong></p>
             <p><span className="text-gray-500">Supply Type:</span> <strong className="text-orange-700">{invoice.is_igst ? 'Inter-State (IGST 5%)' : 'Intra-State (CGST 2.5% + SGST 2.5%)'}</strong></p>
-            <p><span className="text-gray-500">Dispatch Status:</span> <strong className={invoice.is_dispatched ? 'text-green-700' : 'text-amber-700'}>{invoice.is_dispatched ? 'Dispatched' : 'Pending'}</strong></p>
+            <p><span className="text-gray-500">Dispatch Status:</span> <strong className={invoice.status === 'cancelled' ? 'text-red-700' : invoice.is_dispatched ? 'text-green-700' : 'text-amber-700'}>{invoice.status === 'cancelled' ? 'Cancelled' : invoice.is_dispatched ? 'Dispatched' : 'Pending'}</strong></p>
           </div>
         </div>
 
@@ -161,7 +151,7 @@ export default function InvoiceDetail() {
                       <td className="p-3 text-right text-gray-700">{formatCurrency(line.sgst_paisa)} ({line.sgst_percent}%)</td>
                     </>
                   )}
-                  <td className="p-3 text-right font-black text-gray-900">{formatCurrency(line.total_paisa)}</td>
+                  <td className="p-3 text-right font-semibold text-gray-900">{formatCurrency(line.total_paisa)}</td>
                 </tr>
               ))}
             </tbody>
@@ -192,7 +182,7 @@ export default function InvoiceDetail() {
                 </div>
               </>
             )}
-            <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-200">
+            <div className="flex justify-between text-base font-semibold text-gray-900 pt-2 border-t border-gray-200">
               <span>Total Invoice Amount:</span>
               <span className="text-orange-700">{formatCurrency(invoice.total_paisa)}</span>
             </div>

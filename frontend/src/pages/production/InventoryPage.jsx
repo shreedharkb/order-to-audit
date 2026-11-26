@@ -5,7 +5,9 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import StockBadge from '../../components/StockBadge';
 import DataTable from '../../components/DataTable';
 import toast from 'react-hot-toast';
-import { Package, BookOpen, Layers } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 export default function InventoryPage() {
   const [stockSummary, setStockSummary] = useState([]);
@@ -21,7 +23,7 @@ export default function InventoryPage() {
     if (activeTab !== 'all') url += `?type=${activeTab}`;
     client.get(url)
       .then(res => setStockSummary(res.data))
-      .catch(err => toast.error('Failed to load inventory'))
+      .catch(() => toast.error('Failed to load inventory'))
       .finally(() => setLoading(false));
   };
 
@@ -29,13 +31,13 @@ export default function InventoryPage() {
     fetchStock();
   }, [activeTab]);
 
-  const viewLedger = async (item) => {
+  const viewLedger = async item => {
     setSelectedItemLedger(item);
     setLoadingLedger(true);
     try {
       const res = await client.get(`/reports/stock-ledger?itemId=${item.id}`);
       setLedgerMovements(res.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to fetch stock movements');
     } finally {
       setLoadingLedger(false);
@@ -43,67 +45,64 @@ export default function InventoryPage() {
   };
 
   const columns = [
-    { key: 'name', label: 'Item Name' },
+    { key: 'name', label: 'Item name' },
     {
       key: 'type',
       label: 'Category',
-      render: val => <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100">{val.replace('_', ' ')}</span>
+      render: value => <Badge variant="outline" className="capitalize">{value.replaceAll('_', ' ')}</Badge>
     },
     {
       key: 'current_balance',
-      label: 'Balance on Floor',
+      label: 'Balance on floor',
       align: 'right',
-      render: (val, r) => <StockBadge balance={val} reorderLevel={r.reorder_level} unit={r.unit} />
+      render: (value, row) => <StockBadge balance={value} reorderLevel={row.reorder_level} unit={row.unit} />
     },
     {
       key: 'weighted_avg_rate_paisa',
-      label: 'Valuation Rate',
+      label: 'Valuation rate',
       align: 'right',
-      render: (val, r) => `${formatCurrency(val)} / ${r.unit}`
+      render: (value, row) => `${formatCurrency(value)} / ${row.unit}`
     },
     {
       key: 'stock_value_paisa',
-      label: 'Inventory Value',
+      label: 'Inventory value',
       align: 'right',
-      render: val => <span className="font-extrabold text-gray-900">{formatCurrency(val)}</span>
+      render: value => <span className="font-semibold text-ink-950">{formatCurrency(value)}</span>
     },
     {
       key: 'actions',
       label: 'Traceability',
       align: 'right',
       render: (_, row) => (
-        <button
-          onClick={() => viewLedger(row)}
-          className="text-xs font-bold text-orange-600 hover:text-orange-700 underline"
-        >
-          View Movements →
-        </button>
+        <Button type="button" variant="ghost" size="sm" className="h-auto px-0 text-primary-700 hover:bg-transparent hover:text-primary-800" onClick={() => viewLedger(row)}>
+          View movements
+        </Button>
       )
     }
   ];
 
+  const tabs = [
+    { id: 'all', label: 'All items' },
+    { id: 'raw_material', label: 'Raw materials' },
+    { id: 'packaging', label: 'Packaging' },
+    { id: 'finished_good', label: 'Finished goods' }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Stock Balances & Audit Ledger</h1>
-          <p className="text-sm text-gray-500">Continuous ledger reconciliation: Opening + Receipts − Issues = Closing</p>
+          <h1 className="page-title">Stock balances and ledger</h1>
+          <p className="page-subtitle">Opening balance + receipts − issues = closing balance.</p>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex gap-1.5 p-1 bg-gray-200/70 rounded-xl text-xs font-bold">
-          {[
-            { id: 'all', label: 'All Items' },
-            { id: 'raw_material', label: 'Raw Materials' },
-            { id: 'packaging', label: 'Packaging' },
-            { id: 'finished_good', label: 'Finished Goods' }
-          ].map(tab => (
+        <div className="scrollbar-none flex gap-1 overflow-x-auto rounded-lg bg-slate-200/70 p-1">
+          {tabs.map(tab => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium transition-colors ${activeTab === tab.id ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-600 hover:text-ink-950'}`}
             >
               {tab.label}
             </button>
@@ -114,80 +113,62 @@ export default function InventoryPage() {
       {loading ? (
         <LoadingSpinner message="Reconciling stock ledger..." />
       ) : (
-        <DataTable
-          columns={columns}
-          data={stockSummary}
-          searchPlaceholder="Search material or finished product..."
-        />
+        <DataTable columns={columns} data={stockSummary} searchPlaceholder="Search material or finished product..." />
       )}
 
-      {/* Movement Ledger Modal for Selected Item */}
-      {selectedItemLedger && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-orange-600" />
-                  <span>Audit Trail Ledger: {selectedItemLedger.name}</span>
-                </h3>
-                <p className="text-xs text-gray-500">Every stock in/out entry tied to source transactions</p>
-              </div>
-              <button onClick={() => setSelectedItemLedger(null)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
-            </div>
+      <Dialog open={Boolean(selectedItemLedger)} onOpenChange={open => { if (!open) setSelectedItemLedger(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Stock movement ledger</DialogTitle>
+            <DialogDescription>{selectedItemLedger?.name} · Every stock entry tied to its source transaction.</DialogDescription>
+          </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto">
-              {loadingLedger ? (
-                <LoadingSpinner message="Extracting movement rows..." />
-              ) : ledgerMovements.length === 0 ? (
-                <div className="text-center p-8 text-gray-400">No movements recorded yet</div>
-              ) : (
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-gray-50 font-bold text-gray-700 sticky top-0 border-b">
+          <div className="mt-5 min-h-40 flex-1 overflow-auto">
+            {loadingLedger ? (
+              <LoadingSpinner message="Loading movement rows..." />
+            ) : ledgerMovements.length === 0 ? (
+              <div className="py-12 text-center text-sm text-ink-500">No movements recorded yet.</div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-ink-600">
                     <tr>
-                      <th className="p-2.5">Date</th>
-                      <th className="p-2.5">Type</th>
-                      <th className="p-2.5">Notes</th>
-                      <th className="p-2.5 text-right text-emerald-700">Qty In (+)</th>
-                      <th className="p-2.5 text-right text-red-700">Qty Out (-)</th>
-                      <th className="p-2.5 text-right font-black">Running Bal</th>
+                      <th className="px-3 py-2.5 font-medium">Date</th>
+                      <th className="px-3 py-2.5 font-medium">Type</th>
+                      <th className="px-3 py-2.5 font-medium">Notes</th>
+                      <th className="px-3 py-2.5 text-right font-medium text-emerald-700">Qty in</th>
+                      <th className="px-3 py-2.5 text-right font-medium text-red-700">Qty out</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Running balance</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {ledgerMovements.map(m => (
-                      <tr key={m.id} className="hover:bg-gray-50">
-                        <td className="p-2.5 text-gray-600">{formatDate(m.txn_date)}</td>
-                        <td className="p-2.5 font-bold uppercase text-[10px]">
-                          <span className="px-2 py-0.5 rounded bg-gray-100">{m.txn_type.replace('_', ' ')}</span>
+                  <tbody className="divide-y divide-slate-200">
+                    {ledgerMovements.map(movement => (
+                      <tr key={movement.id}>
+                        <td className="px-3 py-2.5 text-ink-600">{formatDate(movement.txn_date)}</td>
+                        <td className="px-3 py-2.5"><Badge variant="outline" className="capitalize">{movement.txn_type.replaceAll('_', ' ')}</Badge></td>
+                        <td className="max-w-xs truncate px-3 py-2.5 text-ink-600">{movement.notes || '-'}</td>
+                        <td className="px-3 py-2.5 text-right font-medium text-emerald-700">
+                          {parseFloat(movement.qty_in) > 0 ? `+${formatQty(movement.qty_in, movement.unit)}` : '-'}
                         </td>
-                        <td className="p-2.5 text-gray-600 truncate max-w-xs">{m.notes || '-'}</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-700">
-                          {parseFloat(m.qty_in) > 0 ? `+${formatQty(m.qty_in, m.unit)}` : '-'}
+                        <td className="px-3 py-2.5 text-right font-medium text-red-700">
+                          {parseFloat(movement.qty_out) > 0 ? `-${formatQty(movement.qty_out, movement.unit)}` : '-'}
                         </td>
-                        <td className="p-2.5 text-right font-bold text-red-700">
-                          {parseFloat(m.qty_out) > 0 ? `-${formatQty(m.qty_out, m.unit)}` : '-'}
-                        </td>
-                        <td className="p-2.5 text-right font-black text-gray-900">
-                          {formatQty(m.running_balance, m.unit)}
-                        </td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-ink-950">{formatQty(movement.running_balance, movement.unit)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              )}
-            </div>
-
-            <div className="pt-3 border-t flex justify-end">
-              <button
-                onClick={() => setSelectedItemLedger(null)}
-                className="px-5 py-2 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl"
-              >
-                Close
-              </button>
-            </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

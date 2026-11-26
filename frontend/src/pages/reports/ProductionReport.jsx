@@ -101,8 +101,8 @@ export default function ProductionReport() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Production Variance & Yield Audit</h1>
-        <p className="text-sm text-gray-500">Planned versus actual material consumption, yield, scrap, and tolerance alerts</p>
+        <h1 className="page-title">Production Variance & Yield Audit</h1>
+        <p className="page-subtitle">Planned versus actual material consumption, yield, scrap, and tolerance alerts</p>
       </div>
 
       <DateRangeFilter onApply={handleApply} loading={loading} />
