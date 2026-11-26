@@ -31,9 +31,9 @@ erDiagram
     INVOICES ||--o{ PAYMENTS : settles
 ```
 
-`stock_ledger.txn_ref_type` and `txn_ref_id` identify the source purchase, production run, invoice, or adjustment. No editable stock-balance field exists. Stock, source documents, and audit rows commit in one transaction.
+`stock_ledger.txn_ref_type` and `txn_ref_id` identify the source purchase, run, invoice, or adjustment. No editable balance field exists. Stock, source documents, and audit rows commit in one transaction.
 
-Money is integer paisa in PostgreSQL `BIGINT`; JavaScript uses safe integer arithmetic. Quantities use `NUMERIC(15,4)`. Work in progress is not a separate stock account; `production_runs.status` tracks draft through completion.
+Money is integer paisa in PostgreSQL `BIGINT`; JavaScript uses safe integers. Quantities use `NUMERIC(15,4)`. WIP is not a separate stock account; `production_runs.status` tracks draft through completion.
 
 ## 2. Stock and BOM computation
 
@@ -44,9 +44,9 @@ consumption variance % = (A - planned) / planned × 100
 yield variance % = (actual output - expected yield × M) / (expected yield × M) × 100
 ```
 
-`Q` is BOM quantity per batch, `M` is batch multiplier, and `A` is actual issue. Purchases add stock; production issues remove raw materials; completion removes packaging and adds finished goods; dispatch removes finished goods. Cancellation posts an offsetting `sale_return`.
+`Q` is BOM quantity per batch, `M` is batch multiplier, and `A` is actual issue. Purchases add stock; issues remove raw materials; completion removes packaging and adds finished goods; dispatch removes finished goods. Cancellation posts an offsetting `sale_return`.
 
-kg/g and litre/ml normalize automatically; incompatible count units are rejected. Pouches consumed equal good packets plus damaged pouches. Carton use is entered explicitly, or calculated from pack capacity when omitted. Absolute variance above the configured 3% tolerance is flagged.
+kg/g and litre/ml normalize automatically; incompatible count units are rejected. Pouches consumed equal good packets plus damaged pouches. Carton use is explicit or calculated from pack capacity. Absolute variance above 3% is flagged.
 
 ## 3. Costing and valuation
 
@@ -59,22 +59,22 @@ cost/packet = ROUND(batch cost / actual good output)
 margin      = selling price - cost per packet
 ```
 
-Outward movements store the rate used at that time, so later issues reverse the correct ledger value. Labour and utilities are directly assigned to the run; no monthly overhead pool is allocated.
+Outward movements store the rate used at that time. Labour and utilities are directly assigned to the run; no monthly overhead pool is allocated.
 
 | Benchmark component | Cost |
 | --- | ---: |
-| Flour, oil, spice, pouches and cartons | ₹4,055.20 |
+| Materials and packaging | ₹4,055.20 |
 | Labour | ₹1,200.00 |
 | Gas/power | ₹600.00 |
 | **Total** | **₹5,855.20** |
 
-`₹5,855.20 ÷ 188 = ₹31.1447`, rounded to **₹31.14 per packet**. Flour WAC rounds from ₹43.125 to ₹43.13/kg, adding ₹0.20 to the batch; packet cost is unchanged at two decimals. Opening finished goods have zero seeded cost, so cost reports use new-run cost rather than blended stock WAC. At ₹50 pre-tax, approximate margin is ₹18.86 per packet, or 37.72%.
+`₹5,855.20 ÷ 188 = ₹31.1447`, rounded to **₹31.14 per packet**. Flour WAC rounds from ₹43.125 to ₹43.13/kg, adding ₹0.20 to the batch; packet cost is unchanged. Opening finished goods have zero seeded cost, so reports use new-run cost rather than blended stock WAC. At ₹50 pre-tax, approximate margin is ₹18.86 per packet, or 37.72%.
 
 ## 4. Correctness controls
 
-- Factory state code `33`: same-state supply uses CGST + SGST; other-state supply uses IGST. Murukku GST is 5%.
+- State code `33`: same-state supply uses CGST + SGST; other-state supply uses IGST. Murukku GST is 5%.
 - Invoice and credit-note counters are separate, locked, and sequenced by April–March financial year.
 - Production changes, invoice creation/dispatch/cancellation, purchases, payments, and master creation record user, time, and old/new values.
-- Invoices are never deleted. Cancellation assigns a credit-note number, reverses payments, and restores dispatched stock.
+- Invoices are never deleted. Cancellation assigns a credit-note number, reverses payments, and restores stock.
 
-Full-invoice dispatch, current stock summaries, direct run overheads, and Excel exports are implemented. Offline sync, partial dispatch, FEFO/expiry picking, Tally/e-Invoice integration, PDF/CSV reports, GPS visits, and Tamil UI are outside the current scope; the README lists all assumptions and gaps.
+Full-invoice dispatch, current stock summaries, direct run overheads, and Excel exports are implemented. Offline sync, partial dispatch, FEFO/expiry picking, Tally/e-Invoice integration, PDF/CSV reports, GPS visits, and Tamil UI are outside scope; the README lists all assumptions and gaps.
