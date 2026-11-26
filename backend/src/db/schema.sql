@@ -117,9 +117,9 @@ CREATE TABLE IF NOT EXISTS stock_ledger (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_stock_ledger_item ON stock_ledger(item_id);
-CREATE INDEX idx_stock_ledger_txn ON stock_ledger(txn_type);
-CREATE INDEX idx_stock_ledger_ref ON stock_ledger(txn_ref_type, txn_ref_id);
+CREATE INDEX IF NOT EXISTS idx_stock_ledger_item ON stock_ledger(item_id);
+CREATE INDEX IF NOT EXISTS idx_stock_ledger_txn ON stock_ledger(txn_type);
+CREATE INDEX IF NOT EXISTS idx_stock_ledger_ref ON stock_ledger(txn_ref_type, txn_ref_id);
 
 -- Purchases
 CREATE TABLE IF NOT EXISTS purchases (
@@ -288,8 +288,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_audit_log_table ON audit_log(table_name, record_id);
-CREATE INDEX idx_audit_log_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_table ON audit_log(table_name, record_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
 
 -- Overhead allocation records
 CREATE TABLE IF NOT EXISTS overhead_entries (
