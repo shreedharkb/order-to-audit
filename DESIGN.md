@@ -12,31 +12,36 @@ The primary objective is linking the **Sales Loop** (Order → Verification → 
 
 ```mermaid
 flowchart TD
-    subgraph SALES_LOOP["Sales Loop"]
-        SO["Salesman Mobile Order\n(Offline/Online)"] --> AV["Admin Verification &\nStock Shortage Check"]
-        AV --> GI["GST Tax Invoice\n(CGST+SGST / IGST)"]
-        GI --> DP["Physical Dispatch\n(FG Stock Decremented)"]
-        DP --> REC["Accounts Receivable &\nCollections Ledger"]
+    subgraph SALES["🔄 1. Sales Loop"]
+        direction LR
+        SO["Salesman Order\n(Mobile App)"] --> AV["Admin Verification\n(Stock Check)"]
+        AV --> GI["GST Tax Invoice\n(Intra/Inter-State)"]
+        GI --> DISP["Goods Dispatch"]
+        DISP --> REC["Collections &\nReceivables"]
     end
 
-    subgraph INVENTORY_JUNCTION["Single Source of Truth: Stock Movement Ledger"]
+    subgraph PROD["🍳 2. Production Loop (Recipe BOM)"]
+        direction LR
+        PO["Raw Purchase\n(Vendor Inward)"] --> RMS[("Raw & Packaging\nStock Ledger")]
+        RMS --> BOM["Issue per BOM\n(Planned Input)"]
+        BOM --> RUN["Production Run\n(Actual & Scrap)"]
+        RUN --> VAR["Yield Variance (>3%)\n& Unit Costing"]
+    end
+
+    subgraph JUNCTION["📦 Finished Goods Stock Ledger"]
         FGS[("Finished Goods Stock\n(e.g., Murukku 200g)")]
-        RMS[("Raw Materials & Packaging\n(Flour, Oil, Pouches, Cartons)")]
     end
 
-    subgraph PRODUCTION_LOOP["Production Loop"]
-        PO["Purchase Inward\n(Vendor Receipt)"] --> RMS
-        RMS --> BOM_ISSUE["Recipe BOM Issue\n(Planned vs Actual)"]
-        BOM_ISSUE --> PROD_RUN["Floor Production Run\n(Wastage & Scraps)"]
-        PROD_RUN --> YIELD_CHECK["Yield Variance Engine\n(Flag > 3% Tolerance)"]
-        YIELD_CHECK --> COST_ENG["Costing Engine\n(Weighted Avg + Direct Overheads)"]
-        COST_ENG --> FGS
+    subgraph AUDIT["📑 3. Monthly Auditor & Owner Reports"]
+        REP["Monthly Reports & Excel Exports\n• Sales & GSTR-1/3B Summary • Running Stock Ledger\n• Recipe Variance Flags (>3%) • Cost per Packet (₹31.14) • Customer Ageing (0-90+ Days)"]
     end
 
-    DP --> FGS
-    GI --> AUDIT_REPORT["Auditor & Tax Reports\n(GSTR-1, GSTR-3B, Stock Ledger, P&L)"]
-    REC --> AUDIT_REPORT
-    COST_ENG --> AUDIT_REPORT
+    DISP ==>|"Stock Decreases (-)"| FGS
+    VAR ==>|"Stock Increases (+)"| FGS
+
+    FGS --> AUDIT
+    REC --> AUDIT
+    VAR --> AUDIT
 ```
 
 ---

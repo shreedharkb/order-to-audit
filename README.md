@@ -23,96 +23,40 @@ Small packaged-food manufacturers (producing traditional South Indian snacks lik
 
 ## 2. System Architecture
 
-### 2.1 The Two Closed Loops Architecture
-
-The core of the problem links two fundamental business cycles meeting at the **Finished Goods Stock Ledger**:
+The core of the system links two business loops meeting at the **Finished Goods Stock Ledger**, which together feed the monthly reports:
 
 ```mermaid
 flowchart TD
-    subgraph SALES_LOOP["🔄 1. Sales & Commercial Loop"]
-        SO["📱 Salesman Field Order\n(Mobile App - Retailer/Distributor)"] --> AV["🏢 Admin Order Verification\n(Live Stock Shortage Check)"]
-        AV --> GI["🧾 GST Tax Invoicing\n(Place of Supply: Intra / Inter State)"]
-        GI --> PDF["📄 Tax Invoice PDF &\nCustomer Dispatch Notification"]
-        PDF --> DISP["🚚 Physical Dispatch Confirmation\n(Finished Goods Stock Decremented)"]
-        DISP --> AR["💰 Accounts Receivable\n(FIFO Invoice Settlement & Ageing)"]
+    subgraph SALES["🔄 1. Sales Loop"]
+        direction LR
+        SO["Salesman Order\n(Mobile App)"] --> AV["Admin Verification\n(Stock Check)"]
+        AV --> GI["GST Tax Invoice\n(Intra/Inter-State)"]
+        GI --> DISP["Goods Dispatch"]
+        DISP --> REC["Collections &\nReceivables"]
     end
 
-    subgraph STOCK_LEDGER["📦 Single Source of Truth: Movement-Based Stock Ledger"]
-        direction TB
-        RMS[("Raw Materials & Packaging Ledger\n• Rice Flour (kg)\n• Cooking Oil (L)\n• Spice Mix (kg)\n• 200g Pouches (pcs)\n• Shipping Cartons (pcs)")]
-        FGS[("Finished Goods Ledger\n• Murukku 200g (packets)\n• Running Closing Balances\n• Complete Traceability")]
+    subgraph PROD["🍳 2. Production Loop (Recipe BOM)"]
+        direction LR
+        PO["Raw Purchase\n(Vendor Inward)"] --> RMS[("Raw & Packaging\nStock Ledger")]
+        RMS --> BOM["Issue per BOM\n(Planned Input)"]
+        BOM --> RUN["Production Run\n(Actual & Scrap)"]
+        RUN --> VAR["Yield Variance (>3%)\n& Unit Costing"]
     end
 
-    subgraph PROD_LOOP["🏭 2. Recipe-Based Production Loop (BOM)"]
-        PURCH["🛒 Raw Material Purchase\n(Vendor Receipt & Stock Inward)"] --> RMS
-        RMS --> ISSUE["⚖️ Recipe BOM Issue\n(Planned vs Actual Ingredients)"]
-        ISSUE --> BATCH["🍳 Floor Production Run\n(Batch Multipliers, Scraps & Output)"]
-        BATCH --> VAR["⚠️ Recipe Variance Engine\n(Flags Yield & Usage > 3% Tolerance)"]
-        VAR --> COST["📊 Unit Costing Engine\n(Weighted Avg Cost + Direct Overheads)"]
-        COST --> FGS
+    subgraph JUNCTION["📦 Finished Goods Stock Ledger"]
+        FGS[("Finished Goods Stock\n(e.g., Murukku 200g)")]
     end
 
-    DISP --> FGS
-
-    subgraph AUDIT_REPORTS["📑 3. Monthly Auditor & Accounts Portal"]
-        GI --> REP1["Sales Register & Customer Breakdown"]
-        GI --> REP2["GST Outward Supplies (GSTR-1 / GSTR-3B)"]
-        PURCH --> REP3["Purchase Register"]
-        STOCK_LEDGER --> REP4["Stock Summary & Running Ledger"]
-        VAR --> REP5["Production Variance & Scrap Report"]
-        COST --> REP6["Packet Costing & Margin Analysis"]
-        AR --> REP7["Outstanding & 0-90+ Days Ageing"]
+    subgraph AUDIT["📑 3. Monthly Auditor & Owner Reports"]
+        REP["Monthly Reports & Excel Exports\n• Sales & GSTR-1/3B Summary • Running Stock Ledger\n• Recipe Variance Flags (>3%) • Cost per Packet (₹31.14) • Customer Ageing (0-90+ Days)"]
     end
 
-    classDef primary fill:#ea580c,stroke:#9a3412,stroke-width:2px,color:#fff;
-    classDef secondary fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
-    classDef ledger fill:#0f172a,stroke:#334155,stroke-width:2px,color:#fff;
-    classDef audit fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+    DISP ==>|"Stock Decreases (-)"| FGS
+    VAR ==>|"Stock Increases (+)"| FGS
 
-    class SO,AV,GI,PDF,DISP,AR primary;
-    class PURCH,ISSUE,BATCH,VAR,COST secondary;
-    class RMS,FGS ledger;
-    class REP1,REP2,REP3,REP4,REP5,REP6,REP7 audit;
-```
-
----
-
-### 2.2 Technical Component Architecture
-
-```mermaid
-flowchart LR
-    subgraph CLIENT["Client Layer (React 18 + Tailwind)"]
-        SM["📱 Mobile Field View\n(Salesman Order Taking)"]
-        AD["🖥️ Desktop Admin Desk\n(Verification, Invoices, Dues)"]
-        PR["📱 Floor Supervisor View\n(BOM Run, Issues, Scrap)"]
-        AU["📊 Auditor Portal\n(Read-Only Registers & Exports)"]
-        OW["📈 Executive Dashboard\n(KPIs, Stock Alerts, Margins)"]
-    end
-
-    subgraph GATEWAY["Nginx Reverse Proxy / Vercel Edge"]
-        PROXY["Reverse Proxy & Static Asset Server\n(Port 80 / CDN)"]
-    end
-
-    subgraph BACKEND["Backend Layer (Node.js & Express)"]
-        API["Express REST API (Port 3000)"]
-        AUTH["JWT & RBAC Middleware"]
-        STOCK_ENG["Stock Ledger Engine\n(Zero Static Balances)"]
-        GST_ENG["GST POS Calculator\n(Intra vs Inter-State)"]
-        COST_ENG["Batch Costing Engine\n(Weighted Avg + Direct Overheads)"]
-        UNIT_ENG["Unit Conversion Service\n(kg/g, L/ml, pcs/ctn)"]
-        DOCS["PDFKit (Invoice PDF) &\nExcelJS (Auditor Exports)"]
-    end
-
-    subgraph DB["Persistence Layer (PostgreSQL 15)"]
-        PG[("PostgreSQL Database\n• ACID Transactions\n• Integer Paisa Arithmetic\n• Audit Trail Log")]
-    end
-
-    SM & AD & PR & AU & OW --> PROXY
-    PROXY -->|"/api/*"| API
-    PROXY -->|"/*"| CLIENT
-    API --> AUTH
-    AUTH --> STOCK_ENG & GST_ENG & COST_ENG & UNIT_ENG & DOCS
-    STOCK_ENG & GST_ENG & COST_ENG & DOCS --> PG
+    FGS --> AUDIT
+    REC --> AUDIT
+    VAR --> AUDIT
 ```
 
 ---
