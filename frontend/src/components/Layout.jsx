@@ -159,7 +159,7 @@ export default function Layout({ children }) {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-ink-950">Sri Lakshmi Foods</span>
-            <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">Order to Audit ERP</span>
+            <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">FactoryLoop ERP</span>
           </span>
         </Link>
         <button

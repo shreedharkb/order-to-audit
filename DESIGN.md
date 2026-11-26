@@ -1,7 +1,7 @@
-# Design Note: Order-to-Audit Food Manufacturing ERP
+# Design Note: FactoryLoop — Food Manufacturing ERP
 
 **Institution:** Centre for Digital Infrastructure, NIT Tiruchirappalli  
-**Project:** Order-to-Audit System for Packaged Food Manufacturing (Sri Lakshmi Foods)  
+**Project:** FactoryLoop ERP for Packaged Food Manufacturing (Sri Lakshmi Foods)  
 **Author:** Shreedhar K B  
 
 ---

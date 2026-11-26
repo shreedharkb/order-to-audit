@@ -40,7 +40,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
-    service: 'Order-to-Audit Food Manufacturing ERP',
+    service: 'FactoryLoop - Food Manufacturing ERP',
     timestamp: new Date().toISOString()
   });
 });
@@ -64,7 +64,7 @@ const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`======================================================`);
-    console.log(`🏭 Order-to-Audit ERP Server running on port ${PORT}`);
+    console.log(`🏭 FactoryLoop ERP Server running on port ${PORT}`);
     console.log(`🌐 Base API: http://localhost:${PORT}/api`);
     console.log(`======================================================`);
   });

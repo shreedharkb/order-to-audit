@@ -40,7 +40,7 @@ export default function OwnerDashboard() {
               Executive Overview
             </span>
             <h1 className="text-2xl sm:text-3xl font-black mt-2 tracking-tight">Sri Lakshmi Foods Operations</h1>
-            <p className="text-stone-300 text-sm mt-1">Real-time Order-to-Audit status across Sales, Production, and Finance</p>
+            <p className="text-stone-300 text-sm mt-1">Real-time FactoryLoop operations across Sales, Production, and Finance</p>
           </div>
           <div className="flex items-center space-x-3">
             <Link

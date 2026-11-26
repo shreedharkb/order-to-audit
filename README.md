@@ -1,6 +1,6 @@
-# Sri Lakshmi Foods — Order-to-Audit ERP
+# FactoryLoop — Food Manufacturing ERP
 
-> **A production-ready Enterprise Resource Planning (ERP) prototype bridging the Sales Loop and Recipe-Based Production Loop for a small packaged food manufacturer.**  
+> **A production-ready Enterprise Resource Planning (ERP) platform bridging the Sales Loop and Recipe-Based Production Loop for Sri Lakshmi Foods.**  
 > Built for the **Centre for Digital Infrastructure, National Institute of Technology, Tiruchirappalli** Internship Shortlisting Task.  
 > **Author:** Shreedhar K B (`23bcs126@iiitdwd.ac.in`) · IIIT Dharwad  
 > **🌐 Live Deployment:** [https://frontend-fawn-ten-48.vercel.app](https://frontend-fawn-ten-48.vercel.app)  

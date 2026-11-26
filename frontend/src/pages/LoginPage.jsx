@@ -59,7 +59,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative max-w-xl py-12">
-          <p className="eyebrow text-primary-300">Order to Audit ERP</p>
+          <p className="eyebrow text-primary-300">FactoryLoop ERP</p>
           <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.12] tracking-tight xl:text-5xl">
             One connected workflow, from field order to final audit.
           </h1>
@@ -97,7 +97,7 @@ export default function LoginPage() {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-600 text-white shadow-sm"><Factory className="h-5 w-5" /></span>
           <div>
             <p className="text-sm font-bold text-ink-950">Sri Lakshmi Foods</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">Order to Audit ERP</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-400">FactoryLoop ERP</p>
           </div>
         </div>
 
@@ -172,7 +172,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-[11px] text-ink-400">© {new Date().getFullYear()} Sri Lakshmi Foods · Order to Audit System</p>
+        <p className="text-center text-[11px] text-ink-400">© {new Date().getFullYear()} Sri Lakshmi Foods · Powered by FactoryLoop</p>
       </main>
     </div>
   );

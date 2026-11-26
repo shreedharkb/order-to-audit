@@ -1,7 +1,7 @@
 {
-  "name": "order-to-audit-backend",
+  "name": "factoryloop-backend",
   "version": "1.0.0",
-  "description": "Order-to-Audit System Backend - Food Manufacturing ERP",
+  "description": "FactoryLoop - Food Manufacturing ERP (Order-to-Audit Engine)",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
