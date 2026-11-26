@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "build": "node -e \"console.log('Backend build ready for deployment')\"",
     "dev": "nodemon src/index.js",
     "test": "jest --forceExit --detectOpenHandles",
     "seed": "node src/db/runSeed.js",
