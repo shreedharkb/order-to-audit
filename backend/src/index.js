@@ -86,6 +86,35 @@ app.all('/api/setup-db', async (req, res) => {
   }
 });
 
+// One-click reset to clean Section 5 benchmark opening state
+app.all('/api/reset-benchmark', async (req, res) => {
+  try {
+    await pool.query(`
+      TRUNCATE payments, invoice_lines, invoices, order_lines, orders,
+               overhead_entries, production_issues, production_runs, stock_ledger CASCADE;
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 100, 0, 'kg', 4200, 'Opening stock', 1 FROM items WHERE name = 'Rice Flour';
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'litre', 14000, 'Opening stock', 1 FROM items WHERE name = 'Cooking Oil';
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 5, 0, 'kg', 20000, 'Opening stock', 1 FROM items WHERE name = 'Salt and Spice Mix';
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 500, 0, 'piece', 250, 'Opening stock', 1 FROM items WHERE name = '200g Pouch';
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 30, 0, 'piece', 1500, 'Opening stock', 1 FROM items WHERE name = 'Carton (20 packets)';
+      INSERT INTO stock_ledger (item_id, txn_date, txn_type, qty_in, qty_out, unit, rate_paisa, notes, created_by)
+      SELECT id, CURRENT_DATE, 'opening_balance', 50, 0, 'packet', 0, 'Opening stock - 50 packets', 1 FROM items WHERE name = 'Murukku 200g';
+      DELETE FROM settings WHERE key LIKE '%counter%';
+    `);
+    res.json({
+      success: true,
+      message: 'Database reset to fresh Section 5 opening balances (Flour: 100kg, Oil: 30L, Murukku: 50pkts, etc.)'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 404 handler
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `Endpoint ${req.method} ${req.originalUrl} not found` });
