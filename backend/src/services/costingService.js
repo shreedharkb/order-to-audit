@@ -67,12 +67,44 @@ const calculateRunCost = async (pool, runId) => {
     [totalMaterialCost, finalLabour, finalOverhead, totalCost, costPerUnit, runId]
   );
 
-  await pool.query(
-    `UPDATE stock_ledger
-     SET rate_paisa = $1
-     WHERE txn_ref_type = 'production_run' AND txn_ref_id = $2 AND txn_type = 'production_output'`,
-    [costPerUnit, runId]
+  // 5. Ledger Immutability:
+  // If the initial production_output has rate_paisa = 0 (unvalued pending overheads), set initial valuation.
+  // If rate_paisa is already set, record an explicit cost_adjustment movement to preserve ledger audit trail.
+  const existingLedger = await pool.query(
+    `SELECT id, rate_paisa, item_id, unit, created_by FROM stock_ledger
+     WHERE txn_ref_type = 'production_run' AND txn_ref_id = $1 AND txn_type = 'production_output'
+     LIMIT 1`,
+    [runId]
   );
+
+  if (existingLedger.rows.length > 0) {
+    const row = existingLedger.rows[0];
+    const prevRate = parseInt(row.rate_paisa || 0, 10);
+    if (prevRate === 0) {
+      // Set initial absorption rate for new run
+      await pool.query(
+        `UPDATE stock_ledger SET rate_paisa = $1 WHERE id = $2`,
+        [costPerUnit, row.id]
+      );
+    } else if (prevRate !== costPerUnit) {
+      // Historical rate already recorded; log an explicit cost_adjustment movement
+      await pool.query(
+        `INSERT INTO stock_ledger (
+           item_id, txn_date, txn_type, txn_ref_type, txn_ref_id,
+           qty_in, qty_out, unit, rate_paisa, notes, created_by
+         )
+         VALUES ($1, CURRENT_DATE, 'adjustment', 'production_run', $2, 0, 0, $3, $4, $5, $6)`,
+        [
+          row.item_id,
+          runId,
+          row.unit,
+          costPerUnit - prevRate,
+          `Cost adjustment for Batch run #${runId}: overhead absorption revised from ₹${(prevRate/100).toFixed(2)} to ₹${(costPerUnit/100).toFixed(2)}/unit`,
+          row.created_by
+        ]
+      );
+    }
+  }
 
   return {
     totalMaterialCost,

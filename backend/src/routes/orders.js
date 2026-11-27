@@ -6,6 +6,33 @@ const { authorize } = require('../middleware/rbac');
 const { logAudit } = require('../middleware/auditLog');
 const stockService = require('../services/stockService');
 
+const generateOrderNumber = async (client, date = new Date()) => {
+  const year = date.getFullYear();
+  const counterKey = `order_counter_${year}`;
+
+  await client.query(
+    `INSERT INTO settings (key, value, description)
+     SELECT $1, COALESCE(MAX(CAST(SPLIT_PART(order_number, '/', 3) AS INTEGER)), 0)::TEXT, $2
+     FROM orders
+     WHERE order_number LIKE $3
+     ON CONFLICT (key) DO NOTHING`,
+    [counterKey, `Order counter for ${year}`, `ORD/${year}/%`]
+  );
+
+  const counterRes = await client.query(
+    'SELECT value FROM settings WHERE key = $1 FOR UPDATE',
+    [counterKey]
+  );
+  const counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
+
+  await client.query(
+    'UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = $2',
+    [counter.toString(), counterKey]
+  );
+
+  return `ORD/${year}/${counter.toString().padStart(4, '0')}`;
+};
+
 router.use(authenticate);
 
 /**
@@ -29,14 +56,8 @@ router.post('/', authorize('salesman', 'admin', 'owner'), async (req, res) => {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Generate Order Number: ORD/YYYY/XXXX
-    const year = new Date().getFullYear();
-    const countRes = await client.query(
-      "SELECT COUNT(*) FROM orders WHERE order_number LIKE $1",
-      [`ORD/${year}/%`]
-    );
-    const count = parseInt(countRes.rows[0].count, 10) + 1;
-    const orderNumber = `ORD/${year}/${count.toString().padStart(4, '0')}`;
+    // Generate Order Number with pessimistic locking: ORD/YYYY/XXXX
+    const orderNumber = await generateOrderNumber(client);
 
     let totalPaisa = 0;
     const processedLines = [];

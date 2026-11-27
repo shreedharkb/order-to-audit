@@ -8,6 +8,33 @@ const stockService = require('../services/stockService');
 const costingService = require('../services/costingService');
 const unitService = require('../services/unitService');
 
+const generateBatchNumber = async (client, date = new Date()) => {
+  const year = date.getFullYear();
+  const counterKey = `batch_counter_${year}`;
+
+  await client.query(
+    `INSERT INTO settings (key, value, description)
+     SELECT $1, COALESCE(MAX(CAST(SPLIT_PART(batch_number, '/', 3) AS INTEGER)), 0)::TEXT, $2
+     FROM production_runs
+     WHERE batch_number LIKE $3
+     ON CONFLICT (key) DO NOTHING`,
+    [counterKey, `Batch counter for ${year}`, `BATCH/${year}/%`]
+  );
+
+  const counterRes = await client.query(
+    'SELECT value FROM settings WHERE key = $1 FOR UPDATE',
+    [counterKey]
+  );
+  const counter = parseInt(counterRes.rows[0]?.value || '0', 10) + 1;
+
+  await client.query(
+    'UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = $2',
+    [counter.toString(), counterKey]
+  );
+
+  return `BATCH/${year}/${counter.toString().padStart(4, '0')}`;
+};
+
 router.use(authenticate);
 
 /**
@@ -40,14 +67,8 @@ router.post('/runs', authorize('production', 'admin', 'owner'), async (req, res)
     }
     const expectedOutput = parseFloat(bom.expected_yield) * mult;
 
-    // Batch number generation
-    const year = new Date().getFullYear();
-    const countRes = await client.query(
-      "SELECT COUNT(*) FROM production_runs WHERE batch_number LIKE $1",
-      [`BATCH/${year}/%`]
-    );
-    const count = parseInt(countRes.rows[0].count, 10) + 1;
-    const batchNumber = `BATCH/${year}/${count.toString().padStart(4, '0')}`;
+    // Concurrency-safe batch number generation using pessimistic row locking
+    const batchNumber = await generateBatchNumber(client, runDate ? new Date(runDate) : new Date());
 
     const runRes = await client.query(`
       INSERT INTO production_runs (

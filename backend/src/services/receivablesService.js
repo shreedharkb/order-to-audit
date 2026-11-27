@@ -75,4 +75,9 @@ const getOutstandingReport = async (pool) => {
   return report;
 };
 
-module.exports = { getOutstandingReport };
+const getCustomerOutstanding = async (pool, customerId) => {
+  const report = await getOutstandingReport(pool);
+  return report.find(r => r.customerId === customerId) || { outstandingPaisa: 0 };
+};
+
+module.exports = { getOutstandingReport, getCustomerOutstanding };
