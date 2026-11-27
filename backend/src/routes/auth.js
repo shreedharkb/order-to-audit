@@ -57,7 +57,12 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error during login' });
+    const isDbErr = err.code || err.message?.includes('connect') || err.message?.includes('relation') || err.message?.includes('database');
+    res.status(500).json({
+      error: isDbErr
+        ? 'Database connection or schema error. Ensure DATABASE_URL is configured and tables are seeded.'
+        : 'Internal server error during login'
+    });
   }
 });
 

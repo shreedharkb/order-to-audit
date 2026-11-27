@@ -36,13 +36,49 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'FactoryLoop - Food Manufacturing ERP',
-    timestamp: new Date().toISOString()
-  });
+const { pool } = require('./config/db');
+const { setupDatabase } = require('./db/dbSetup');
+
+// Health check with database diagnostics
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbRes = await pool.query('SELECT NOW() as now, COUNT(*) as users_count FROM users');
+    res.json({
+      status: 'healthy',
+      database: 'connected',
+      usersInDb: parseInt(dbRes.rows[0].users_count, 10),
+      service: 'FactoryLoop - Food Manufacturing ERP',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(200).json({
+      status: 'degraded',
+      database: 'disconnected',
+      dbError: err.message,
+      service: 'FactoryLoop - Food Manufacturing ERP',
+      hint: 'Set DATABASE_URL in Vercel environment variables and open /api/setup-db to initialize schema',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Remote database setup endpoint for cloud deployments (e.g. Supabase, Neon on Vercel)
+app.all('/api/setup-db', async (req, res) => {
+  try {
+    const result = await setupDatabase();
+    res.json({
+      success: true,
+      message: 'Database schema and Section 5 benchmark seed data initialized successfully!',
+      result
+    });
+  } catch (err) {
+    console.error('Remote DB setup error:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      hint: 'Ensure DATABASE_URL environment variable is correctly configured on Vercel'
+    });
+  }
 });
 
 // 404 handler
