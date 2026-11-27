@@ -40,7 +40,9 @@ export default function LoginPage() {
       toast.success(`Welcome, ${data.user.full_name || data.user.fullName}!`);
       navigate(roleRoutes[data.user.role] || '/');
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Login failed. Please try again.');
+      const rawError = err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      const errorString = typeof rawError === 'string' ? rawError : (rawError.message || JSON.stringify(rawError));
+      setError(errorString);
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,7 @@ export default function LoginPage() {
             {error && (
               <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{error}</span>
+                <span>{typeof error === 'string' ? error : (error?.message || String(error))}</span>
               </div>
             )}
 

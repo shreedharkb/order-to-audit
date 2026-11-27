@@ -21,21 +21,9 @@ app.use(helmet({
   contentSecurityPolicy: false // Allow inline scripts/styles for dev
 }));
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost',
-  'https://frontend-fawn-ten-48.vercel.app'
-].filter(Boolean);
-
+// CORS configuration - allow browser frontend and Vercel domains
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      return callback(null, true);
-    }
-    return callback(new Error(`CORS origin ${origin} not permitted`));
-  },
+  origin: true,
   credentials: true
 }));
 app.use(morgan('dev'));
