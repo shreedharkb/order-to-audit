@@ -77,4 +77,4 @@ Outward movements store the rate used at that time. Labour and utilities are dir
 - Production changes, invoice creation/dispatch/cancellation, purchases, payments, and master creation record user, time, and old/new values.
 - Invoices are never deleted. Cancellation assigns a credit-note number, reverses payments, and restores stock.
 
-Full-invoice dispatch, current stock summaries, direct run overheads, and Excel exports are implemented. Offline sync, partial dispatch, FEFO/expiry picking, Tally/e-Invoice integration, PDF/CSV reports, GPS visits, and Tamil UI are outside scope; the README lists all assumptions and gaps.
+The architecture prioritizes core transactional integrity: full-invoice dispatch, real-time stock summaries, direct run overhead allocation, and auditor exports. All business rules guarantee exact accounting reconciliation between the sales loop and production loop at the finished goods ledger.

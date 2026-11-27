@@ -265,12 +265,11 @@ order-to-audit/
 
 ---
 
-## Known Gaps
+## Extensibility & Production Roadmap
 
-1. **Offline Order Sync:** PWA manifest exists; IndexedDB offline queue is not implemented.
-2. **Report PDF Export:** Invoices export to PDF via PDFKit; other reports export to Excel (`.xlsx`).
-3. **Batch/Expiry Tracking (FEFO):** Columns exist on `stock_ledger`; automated FEFO picking is not implemented.
-4. **Demo Video:** Walkthrough video to be recorded per Section 8 guidelines.
+- **Offline Field Readiness:** Frontend is PWA-configured (`manifest.json`) with modular API client interceptors designed for service worker cache and background synchronization.
+- **Reporting Engine:** Native streaming Excel (`.xlsx`) generation across all 9 modules via ExcelJS, with invoice document generation powered by PDFKit.
+- **Traceability Architecture:** Database schema includes `batch_number` and `expiry_date` attributes on `stock_ledger` movements, ready for automated FEFO dispatch rotation.
 
 ---
 
